@@ -1,0 +1,6 @@
+*.json
+backend/.env
+*.pyc
+.li*
+.ll*
+.env
