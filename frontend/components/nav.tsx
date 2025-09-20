@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Bot, Users, Settings, GraduationCap } from "lucide-react"
+import { BarChart3, Bot, Users, GraduationCap } from "lucide-react"
 
 export default function Navigation() {
     const pathname = usePathname()
@@ -11,14 +11,12 @@ export default function Navigation() {
         { id: "dashboard", icon: BarChart3, label: "Dashboard", href: "/dashboard" },
         { id: "agents", icon: Bot, label: "Agents", href: "/agents" },
         { id: "mentors", icon: Users, label: "Mentors", href: "/mentors" },
-        { id: "settings", icon: Settings, label: "Settings", href: "#" },
     ]
 
     const getActiveId = () => {
         if (pathname === "/dashboard") return "dashboard"
         if (pathname === "/agents") return "agents"
         if (pathname === "/mentors") return "mentors"
-        if (pathname === "/settings") return "settings"
         return "dashboard"
     }
 
