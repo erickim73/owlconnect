@@ -89,12 +89,56 @@ export default function OnboardingFlow() {
   ]
 
   const handleNext = () => {
+    // Always proceed to next step immediately
     if (currentStep < totalSteps - 1) {
       setIsTransitioning(true)
       setTimeout(() => {
-        setCurrentStep(currentStep + 1)
+        setCurrentStep(prevStep => prevStep + 1)
         setIsTransitioning(false)
       }, 200)
+    }
+    
+    // If we're on the file upload step and have files to upload, start upload in background
+    if (currentStep === 1 && data.role === 'mentee' && data.resume && data.transcript) {
+      const uploadFiles = async () => {
+        try {
+          const formData = new FormData()
+          formData.append('resume_file', data.resume!)
+          formData.append('transcript_file', data.transcript!)
+
+          // Add a timeout to the fetch request
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+          try {
+            const response = await fetch('http://localhost:8000/onboard-files', {
+              method: 'POST',
+              body: formData,
+              signal: controller.signal,
+            })
+            clearTimeout(timeoutId)
+
+            if (!response.ok) {
+              const errorText = await response.text()
+              console.error('Background file upload failed:', errorText)
+            }
+          } catch (error) {
+            clearTimeout(timeoutId)
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.warn('File upload timed out. Continuing without upload.')
+            } else {
+              console.error('Network error during file upload:', error)
+            }
+          }
+        } catch (error) {
+          console.error('Error preparing file upload:', error)
+        }
+      }
+      
+      // Start the upload in the background without blocking the UI
+      uploadFiles().catch(error => {
+        console.error('Unexpected error in file upload:', error)
+      })
     }
   }
 
@@ -120,75 +164,57 @@ export default function OnboardingFlow() {
     }
   }
 
-  // Added actual form submission function with fallback
+  // Handle the final form submission with text data
   const handleComplete = async () => {
     setIsSubmitting(true)
     setSubmitError(null)
 
     try {
       if (data.role === "mentee") {
-        // For mentees, send resume, transcript, and paragraph
-        if (!data.resume || !data.transcript) {
-          throw new Error("Please upload both resume and transcript")
-        }
-
-        // Create form data for file upload
-        const formData = new FormData()
-        formData.append("resume_file", data.resume)
-        formData.append("transcript_file", data.transcript)
-
         // Create paragraph text from all the profile data
         const paragraphText = `
-                    Hobbies and Interests: ${data.hobbies}
-                    
-                    Personality and MBTI: ${data.mbti}
-                    
-                    Career Goals and Aspirations: ${data.careerGoals}
-                `.trim()
+          Hobbies and Interests: ${data.hobbies}
+          
+          Personality and MBTI: ${data.mbti}
+          
+          Career Goals and Aspirations: ${data.careerGoals}
+        `.trim()
 
-        formData.append("paragraph_text", paragraphText)
-
-        // Try Next.js API route first, then fallback to direct backend call
-        let response
-        try {
-          console.log("Trying Next.js API route...")
-          response = await fetch("/api/onboard", {
-            method: "POST",
-            body: formData,
+        // Send the text data to the backend
+        const response = await fetch('http://localhost:8000/onboard-text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            paragraph_text: paragraphText
           })
-        } catch (apiError) {
-          console.log("Next.js API route failed, trying direct backend...", apiError)
-          // Fallback to direct backend call
-          response = await fetch("http://localhost:8000/onboard", {
-            method: "POST",
-            body: formData,
-          })
-        }
-
-        console.log("Response status:", response.status)
+        })
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.log("Error response:", errorText)
-
           let errorData
           try {
             errorData = JSON.parse(errorText)
           } catch {
             errorData = { detail: errorText || `HTTP ${response.status}` }
           }
-
-          throw new Error(errorData.detail || errorData.error || "Submission failed")
+          throw new Error(errorData.detail || 'Text submission failed')
         }
 
         const result = await response.json()
-        console.log("Onboarding completed:", result)
+        console.log("Text submission completed:", result)
 
-        // Success - show success message
-        alert("Onboarding completed successfully! Welcome to OwlConnect!")
+        // Open WebSocket connection before redirecting
+        // Generate a unique session ID for this user
+        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        
+        // Store session ID in localStorage for the agents page to use
+        localStorage.setItem('negotiation_session_id', sessionId)
+        localStorage.setItem('should_auto_connect', 'true')
 
-        // You could redirect here:
-        // window.location.href = "/dashboard"
+        // Redirect to dashboard after successful submission
+        window.location.href = "/agentslive"
       } else {
         // For mentors, you would implement mentor-specific submission logic
         console.log("Mentor onboarding completed:", data)
@@ -555,7 +581,6 @@ export default function OnboardingFlow() {
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4 mr-1" />
                           Complete Setup
                         </>
                       )}

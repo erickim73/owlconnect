@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, ChevronRight, Star, TrendingUp, Sparkles, Target } from "lucide-react"
 import Link from "next/link"
-import Navigation from "../../components/nav"
+import Navigation from "@/components/nav"
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false)
