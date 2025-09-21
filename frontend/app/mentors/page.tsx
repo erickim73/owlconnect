@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import Navigation from "@/components/nav"
 import { getMatchedMentors } from "../agents/page"
+import { useRouter } from "next/navigation";
 
 // ---------- Types ----------
 type EducationItem = {
@@ -174,6 +175,16 @@ const CareerExplorationPage = () => {
 
   // list from API: [(id, rank), ...] where rank is 1,2,3,...
   const [rankedMentors, setRankedMentors] = useState<RankedMentor[]>([])
+  const token = crypto.randomUUID();
+  const router = useRouter();
+
+  const [menteeData, setMenteeData] = useState<{name: string, major: string}>({
+    name: "",
+    major: ""
+  })
+
+  // list from API: [(id, score), ...]
+  // const [matchedMentors, setMatchedMentors] = useState<MatchedMentor[]>([])
 
   // fetched mentor docs keyed by id
   const [mentorsById, setMentorsById] = useState<Record<string, MentorDoc>>({})
@@ -181,6 +192,30 @@ const CareerExplorationPage = () => {
   useEffect(() => setMounted(true), [])
 
   // 1) Load matched mentors with ranks
+  useEffect(() => {
+
+    async function fetchUser() {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000"}/users/newest`,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",        // avoid any caching
+          // credentials: "include", // uncomment if your API uses cookies
+        }
+      );
+      const data = await res.json();
+      console.log(data)
+      setMenteeData({
+        name: data["resume_data"]["contact"]["name"],
+        major: data["transcript_data"]["majors"][0]
+      })
+    }
+    fetchUser()
+    
+  }, [])
+
+  // 1) Load matched mentors with scores
   useEffect(() => {
     ;(async () => {
       const raw = (await getMatchedMentors()) as Array<[string, number]> | undefined
@@ -267,13 +302,27 @@ const CareerExplorationPage = () => {
           {/* Podium grid: [2nd, 1st, 3rd] */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {podiumCards.map((path, index) => {
+              console.log(305, path)
               const IconComponent = path.icon
               // Optional: slightly vary vertical position for podium feel
-              const heightClass =
-                path.rank === 1 ? "lg:-mt-6" : path.rank === 3 ? "lg:mt-6" : ""
+              const heightClass = path.rank === 1 ? "lg:-mt-6" : path.rank === 3 ? "lg:mt-6" : ""
               return (
                 <div key={String(path.id)} className={`space-y-4 h-full flex flex-col ${heightClass}`} style={{ animationDelay: `${index * 200}ms` }}>
-                  <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 h-52 relative">
+                  <Card 
+                  className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 h-52 relative"
+                  onClick={() => {
+                    console.log(path)
+
+                    const r = {
+                      path,
+                      menteeData
+                    }
+                    console.log(r)
+
+                    sessionStorage.setItem(`nav:${token}`, JSON.stringify(r));
+                    router.push(`/outcomes?token=${token}`);
+
+                  }}>
                     <CardContent className="p-4 py-3 h-full">
                       {/* Rank badge */}
                       <div className="absolute top-3 right-3">

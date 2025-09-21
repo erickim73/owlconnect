@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   GraduationCap,
@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Navigation from "@/components/nav";
+import { useSearchParams } from "next/navigation";
 
 /**
  * Mentee → Mentor Visual Roadmap
@@ -56,25 +57,6 @@ import Navigation from "@/components/nav";
   initials: string;
   colorFrom: string;
   colorTo: string;
-};
-
-// ——— Sample Data (replace with live data)
-const MENTOR: Person = {
-  name: "Sarah Chen",
-  role: "Senior Software Engineer · Google",
-  meta: "5 yrs • CS, Stanford",
-  initials: "SC",
-  colorFrom: "from-indigo-500",
-  colorTo: "to-fuchsia-500",
-};
-
-const MENTEE: Person = {
-  name: "Evan Tu",
-  role: "Mentee • CS @ Rice",
-  meta: "Sophomore • AI/ML & Infra",
-  initials: "ET",
-  colorFrom: "from-sky-500",
-  colorTo: "to-violet-500",
 };
 
 const SEED: Milestone[] = [
@@ -284,6 +266,68 @@ const StopDot: React.FC<{ active?: boolean }>
 
 // ——— Main Component
 export default function MentorRoadmap() {
+
+  const sp = useSearchParams();
+  const token = sp.get("token");
+  // const data = token ? sessionStorage?.getItem(`nav:${token}`) : null;
+  const data =
+  typeof window !== "undefined" && token
+    ? window.sessionStorage.getItem(`nav:${token}`)
+    : null;
+  const x = JSON.parse(data!).menteeData
+ 
+  // console.log(data)
+
+  // ——— Sample Data (replace with live data)
+  // const MENTOR: Person = {
+  //   name: "Sarah Chen",
+  //   role: "Senior Software Engineer · Google",
+  //   meta: "5 yrs • CS, Stanford",
+  //   initials: "SC",
+  //   colorFrom: "from-indigo-500",
+  //   colorTo: "to-fuchsia-500",
+  // };
+
+  // const MENTEE: Person = {
+  //   name: "Evan Tu",
+  //   role: "Mentee • CS @ Rice",
+  //   meta: "Sophomore • AI/ML & Infra",
+  //   initials: "ET",
+  //   colorFrom: "from-sky-500",
+  //   colorTo: "to-violet-500",
+  // };
+
+  const [MENTEE, setCurrentMentee] = useState<Person>({
+    name: "",
+    role: "",
+    meta: "",
+    initials: "",
+    colorFrom: "from-indigo-500",
+    colorTo: "to-fuchsia-500",
+  })
+  const [MENTOR, setCurrentMentor] = useState<Person>({
+    name: "",
+    role: "",
+    meta: "",
+    initials: "",
+     colorFrom: "from-sky-500",
+    colorTo: "to-violet-500",
+  })
+
+  useEffect(() => {
+    if (data) {
+      const parsed = JSON.parse(data).path
+
+      setCurrentMentor(prev => ({
+        ...prev,
+        name: parsed.profile?.name,
+        role: parsed.profile?.title,
+        meta: parsed.profile?.education,
+      }));
+    }
+  }, [data])
+
+
   const [activeId, setActiveId] = useState<string>(SEED[0].id);
   const [milestones, setMilestones] = useState<Milestone[]>(SEED);
   const active = milestones.find((m) => m.id === activeId)!;
@@ -329,7 +373,7 @@ export default function MentorRoadmap() {
           className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
           Compare Your Journey with <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">Successful Mentors</span>
         </motion.h1>
-        <p className="mt-2 text-gray-600 max-w-3xl">See your path from <strong>{MENTEE.name}</strong> to <strong>{MENTOR.name}</strong>. Click each stop to reveal exactly what to do to reach parity.</p>
+        <p className="mt-2 text-gray-600 max-w-3xl">See your path from <strong>{x["name"]}</strong> to <strong>{MENTOR.name}</strong>. Click each stop to reveal exactly what to do to reach parity.</p>
       </div>
 
       {/* Mentee → Mentor strip */}
@@ -337,11 +381,14 @@ export default function MentorRoadmap() {
         <SectionCard>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div className="flex items-center gap-3">
-              {initialsBadge(MENTEE)}
+            <img
+                src={"https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg"}
+                alt={"Mentee"}
+                className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-md"
+              />
               <div>
-                <div className="font-semibold">{MENTEE.name}</div>
-                <div className="text-sm text-gray-600">{MENTEE.role}</div>
-                <div className="text-xs text-gray-500">{MENTEE.meta}</div>
+                <div className="font-semibold">{x["name"]}</div>
+                <div className="text-xs text-gray-600">{x["major"]}</div>
               </div>
             </div>
 
@@ -354,7 +401,11 @@ export default function MentorRoadmap() {
                 <div className="text-sm text-gray-600">{MENTOR.role}</div>
                 <div className="text-xs text-gray-500">{MENTOR.meta}</div>
               </div>
-              {initialsBadge(MENTOR)}
+              <img
+                src={"https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg"}
+                alt={"Mentor"}
+                className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-md"
+              />
             </div>
           </div>
 
