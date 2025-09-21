@@ -174,7 +174,7 @@ function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
       title: `${job}${companySuffix}`,
       avatar:
         m.avatar ||
-        "https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=256&auto=format&fit=facearea&facepad=2.5&h=256",
+        "https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg",
       experience: years,
       education: educationText,
       match: matchScore,
@@ -367,7 +367,7 @@ const CareerExplorationPage = () => {
                         </div>
                       </div>
 
-                      <div className="flex-1">
+                      {/* <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Your Action Plan</h4>
                         <div className="space-y-3">
                           {path.nextSteps.map((step: string, stepIndex: number) => (
@@ -379,7 +379,7 @@ const CareerExplorationPage = () => {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </div> */}
 
                     </CardContent>
                   </Card>
@@ -388,11 +388,11 @@ const CareerExplorationPage = () => {
             })}
           </div>
 
-          {careerPaths.length === 0 && (
+          {/* {careerPaths.length === 0 && (
             <div className="text-center text-gray-600">
               No mentors yet. Make sure <code>/get-mentor?id=…</code> returns data and CORS is allowed from your Next.js origin.
             </div>
-          )}
+          )} */}
 
         </div>
       </main>
