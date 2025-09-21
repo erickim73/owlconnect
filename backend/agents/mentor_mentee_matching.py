@@ -313,9 +313,10 @@ class MatchingSystem:
             return None
 
         if len(successful_mentors) == 1:
-            mentor_id, score, _ = successful_mentors[0]
+            mentor_id, score, convo = successful_mentors[0]
             print(f"\n\033[92m✓ MATCHED WITH: {self.mentors[mentor_id].name}\033[0m")
-            return mentor_id, score
+            return mentor_id, score, [(mentor_id, score, 1)]
+
 
         print("\n\033[1m=== MULTIPLE SUCCESSFUL NEGOTIATIONS ===\033[0m")
         print("Mentee is deciding between the following mentors:")
@@ -334,85 +335,118 @@ class MatchingSystem:
             )
 
         mentee = self.mentees[mentee_id]
-        decision = self._make_mentee_decision(mentee, mentor_options)
-        if decision is not None:
-            mentor_id, score = decision
-            print(f"\n\033[92m✓ MENTEE CHOSE: {self.mentors[mentor_id].name}\033[0m")
-            return mentor_id, score
+        ranked_choices = self._make_mentee_decision(mentee, mentor_options)
+        if ranked_choices:
+            # ranked_choices: List[(mentor_id, score, rank)] with rank 1..3
+            # Pick the top (rank==1) as the selected mentor for the match result:
+            ranked_choices.sort(key=lambda t: t[2])  # ensure rank order
+            top_mid, top_score, _ = ranked_choices[0]
+            # print(f"\n\033[92m✓ MENTEE TOP CHOICE: {self.mentors[top_mid].name}\033[0m")
+            return top_mid, top_score, ranked_choices
 
         print("\n\033[91m✗ Mentee couldn't decide on a mentor\033[0m")
         return None
 
-    def _make_mentee_decision(self, mentee: "Mentee", mentor_options: List[Dict[str, Any]]) -> Optional[Tuple[str, float]]:
+    def _make_mentee_decision(
+        self,
+        mentee: "Mentee",
+        mentor_options: List[Dict[str, Any]]
+    ) -> Optional[List[Tuple[str, float, int]]]:
+        """
+        Returns a ranked top-3 list of (mentor_id, initial_compatibility, rank)
+        with rank in {1,2,3}. Falls back to compatibility sort on parse issues.
+        """
         if not mentor_options:
             return None
+
         if len(mentor_options) == 1:
-            return mentor_options[0]["id"], mentor_options[0]["initial_compatibility"]
+            m = mentor_options[0]
+            return [(m["id"], m["initial_compatibility"], 1)]
 
-        prompt = """You are a mentee as a student at Rice Univeresity who has successfully negotiated with multiple potential mentors. 
-        You need to choose the best mentor based on your conversations and their profiles based solely about compatability and do not discuss scheduling at all. 
-        Be critical for each mentor, and make each mentor pitch why they would be the best mentor for you.
+        prompt = """You are a Rice University student who has successfully negotiated with multiple mentors.
+    Choose the best three mentors by COMPATIBILITY ONLY (no scheduling talk). Be critical, compare strengths,
+    and output strict JSON:
 
-Your profile:
-- Experience: {mentee_years} years in {mentee_skills}
-- Interests: {mentee_interests}
-- Goals: {mentee_goals}
-- Communication style: {mentee_style}
+    {
+    "ranking": [
+        {"mentor_id": "<id from input>", "rank": 1, "reason": "one sentence"},
+        {"mentor_id": "<id>", "rank": 2, "reason": "one sentence"},
+        {"mentor_id": "<id>", "rank": 3, "reason": "one sentence"}
+    ],
+    "summary": "one- or two-sentence overview"
+    }
 
-Available mentors:
-{mentor_descriptions}
+    Rules:
+    - Rank 1 is the top choice, then 2, then 3.
+    - Only include IDs that were provided.
+    - If there are only two valid mentors, return only two; if one, return one.
+    - Do not include any extra fields or text outside the JSON.
+    """
 
-Please analyze each mentor's profile and your conversation with them, then make your selection.
-Return your response as a JSON object with the following format:
-{{
-    "decision": "mentor_id",
-    "reasoning": "Your detailed reasoning for this choice"
-}}
-"""
         mentor_descriptions: List[str] = []
         for i, mentor in enumerate(mentor_options, 1):
             mentor_descriptions.append(
                 f"""
-Mentor {i}: {mentor['name']}
-- Skills: {', '.join(mentor['profile']['skills'])}
-- Experience: {mentor['profile']['experience']} years
-- Communication style: {mentor['profile']['communication_style']}
-- Availability: {', '.join(mentor['profile']['availability'])}
-- Initial compatibility: {mentor['initial_compatibility']:.1%}
-- Conversation summary: {' '.join([msg['message'] for msg in mentor['conversation'][-4:] if msg['from'] != 'system'])}
-"""
+    Mentor {i}: {mentor['name']}
+    - Skills: {', '.join(mentor['profile']['skills'])}
+    - Experience: {mentor['profile']['experience']} years
+    - Communication style: {mentor['profile']['communication_style']}
+    - Availability: {', '.join(mentor['profile']['availability'])}
+    - Initial compatibility: {mentor['initial_compatibility']:.1%}
+    - Conversation summary: {' '.join([msg['message'] for msg in mentor['conversation'][-4:] if msg['from'] != 'system'])}
+    """.strip()
             )
 
-        formatted_prompt = prompt.format(
-            mentee_years=mentee.profile.experience,
-            mentee_skills=", ".join(mentee.profile.skills),
-            mentee_interests=", ".join(mentee.profile.interests),
-            mentee_goals=", ".join(mentee.profile.goals),
-            mentee_style=mentee.profile.communication_style,
-            mentor_descriptions="\n".join(mentor_descriptions),
+        formatted_prompt = (
+            f"{prompt}\n\n"
+            f"Your profile:\n"
+            f"- Experience: {mentee.profile.experience} years in {', '.join(mentee.profile.skills)}\n"
+            f"- Interests: {', '.join(mentee.profile.interests)}\n"
+            f"- Goals: {', '.join(mentee.profile.goals)}\n"
+            f"- Communication style: {mentee.profile.communication_style}\n\n"
+            f"Available mentors:\n" + "\n".join(mentor_descriptions)
         )
 
         response = generate_llm_response(
             prompt=formatted_prompt,
             system_prompt=(
-                "You are a thoughtful mentee making an important decision about which mentor to work with. "
-                "Carefully consider each mentor's profile and your conversation with them."
+                "You are a thoughtful mentee choosing mentors. "
+                "Return valid JSON exactly as requested."
             ),
         )
 
+        # ---- Parse or fallback to compatibility sort ----
         try:
             decision_data = json.loads(clean_response(response))
-            selected_mentor_id = decision_data.get("decision")
-            reasoning = decision_data.get("reasoning", "No reasoning provided")
-            for mentor in mentor_options:
-                if mentor["id"] == selected_mentor_id:
-                    print(f"\n\033[94mMENTEE'S REASONING:\033[0m {reasoning}")
-                    return mentor["id"], mentor["initial_compatibility"]
-            print(f"\n\033[93mWarning: Invalid mentor ID in decision; defaulting to first option\033[0m")
-            return mentor_options[0]["id"], mentor_options[0]["initial_compatibility"]
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"\n\033[93mError parsing decision: {e}. Defaulting to first option.\033[0m")
-            return mentor_options[0]["id"], mentor_options[0]["initial_compatibility"]
+            ranking = decision_data.get("ranking", [])
+            # Map mentor_id -> initial_compatibility for quick lookup
+            score_map = {m["id"]: m["initial_compatibility"] for m in mentor_options}
+
+            ranked = []
+            seen = set()
+            for item in ranking:
+                mid = item.get("mentor_id")
+                rk = int(item.get("rank", 0))
+                if mid in score_map and rk in (1, 2, 3) and mid not in seen:
+                    ranked.append((mid, score_map[mid], rk))
+                    seen.add(mid)
+
+            # Ensure strictly sorted by rank (1->3) and max three entries
+            ranked.sort(key=lambda t: t[2])
+            if ranked:
+                return ranked[:3]
+            # If parsing produced nothing valid, fall through to fallback
+        except Exception as e:
+            print(f"\n\033[93mDecision parse error: {e}. Falling back to compatibility ranking.\033[0m")
+
+        # Fallback: sort by initial_compatibility desc and assign ranks
+        fallback_sorted = sorted(
+            mentor_options,
+            key=lambda m: m["initial_compatibility"],
+            reverse=True
+        )[:3]
+        return [(m["id"], m["initial_compatibility"], i + 1) for i, m in enumerate(fallback_sorted)]
+
 
     def _get_agent_prompt(self, agent_type: AgentType, agent: BaseAgent, other_agent: BaseAgent) -> str:
         profile = agent.profile
@@ -670,14 +704,14 @@ def init_MAN():
     # }
     
 
-    top_matches = matching_system.find_top_matches_per_mentee(top_n=2)
+    top_matches = matching_system.find_top_matches_per_mentee(top_n=4)
     for mentee_id, mentors in top_matches.items():
         print(f"\n\n\033[1m=== PROCESSING MENTEE: {matching_system.mentees[mentee_id].name} ===\033[0m")
         print(f"Top {len(mentors)} potential mentors found")
 
         match_result = matching_system.negotiate_best_match(mentee_id, mentors)
         if match_result:
-            mentor_id, score = match_result
+            mentor_id, score, ranked_top3 = match_result  # <-- new
             mentor = matching_system.mentors[mentor_id]
             mentee = matching_system.mentees[mentee_id]
 
@@ -696,9 +730,21 @@ def init_MAN():
             )
             results.setdefault("mentor_assignments", {}).setdefault(mentor_id, []).append(mentee_id)
             print(f"\n\033[92m✓ SUCCESSFUL MATCH: {mentee.name} matched with {mentor.name} (Score: {score:.1%})\033[0m")
+
+            # --- top_k_mentors now come from ranked_top3 (with ranks) ---
+            # ranked_top3 is List[(mid, initial_score, rank)]
+            top_k_mentors = [(mid, rnk) for (mid, _score, rnk) in ranked_top3]
+
+            # Save back to API with RANKS
+            requests.post(
+                "http://localhost:8000/add-matched-mentors",
+                json={"doc_id": mentee_obj.agent_id, "mentors": top_k_mentors},  # [(id, rank), ...]
+                timeout=3
+            )
         else:
             results["failed_negotiations"] += 1
             print(f"\n\033[91m✗ No suitable mentor found for {matching_system.mentees[mentee_id].name}\033[0m")
+
 
     print("\n\n\033[1m=== FINAL MATCHING SUMMARY ===\033[0m")
     print("\n\033[1mMENTEE MATCHES:\033[0m")
@@ -725,15 +771,6 @@ def init_MAN():
     # --- get top-k mentors for THIS mentee ---
 
 
-    top_k_mentors = [
-    (mid, mobj, mobj.compatibility_scores.get(mentee_obj.agent_id, 0.0))
-    for mid, mobj in sorted(
-        matching_system.mentors.items(),
-        key=lambda item: item[1].compatibility_scores.get(mentee_obj.agent_id, 0.0),
-        reverse=True
-    )[:3]
-    ]
-
 
 # track lowest scoring alternative (exclude matched_mentor)
     lowest_mentor = None
@@ -750,11 +787,11 @@ def init_MAN():
 
 # save top-k back to your API WITHOUT clobbering the mentee object
     # print(top_k_mentors, mentee_obj.agent_id)
-    requests.post(
-        "http://localhost:8000/add-matched-mentors",
-        json={"doc_id": mentee_obj.agent_id, "mentors": [(mid, score) for mid, mobj, score in top_k_mentors]},
-        timeout=3
-    )
+    # requests.post(
+    #     "http://localhost:8000/add-matched-mentors",
+    #     json={"doc_id": mentee_obj.agent_id, "mentors": [(mid, score) for mid, mobj, score in top_k_mentors]},
+    #     timeout=3
+    # )
 
 # --- Benchmarks: use the real Mentee object, not the POST dict ---
     if matched_mentor is not None and lowest_mentor is not None:

@@ -2,20 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Target,
-  Sparkles,
-  TrendingUp,
-  MapPin,
-  Calendar,
-  ArrowRight,
-  Star,
-  Briefcase,
-  GraduationCap,
-  DollarSign,
-  Clock,
+  Target, Sparkles, TrendingUp, MapPin, Star, Briefcase, GraduationCap, Clock,
 } from "lucide-react"
 import Navigation from "@/components/nav"
 import { getMatchedMentors } from "../agents/page"
@@ -84,7 +73,7 @@ type MentorDoc = {
   mbti?: string
 }
 
-type MatchedMentor = { id: string; score: number } // normalized 0..100
+type RankedMentor = { id: string; rank: number }
 
 const ICONS = [Briefcase, TrendingUp, Target] as const
 const GRADIENTS = [
@@ -121,8 +110,8 @@ function pullSkills(m: MentorDoc): string[] {
   return ["Mentorship", "Career Planning", "Project Execution"]
 }
 
-// Convert a mentor document → the card shape your UI expects, using real score
-function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
+// Convert a mentor document → card shape, carrying the rank
+function toCareerPath(m: MentorDoc, index: number, rank: number) {
   const Icon = pick(ICONS, index)
   const g = pick(GRADIENTS, index)
 
@@ -153,10 +142,9 @@ function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
   const cardDesc =
     firstNonEmpty(m.profile?.goals?.[0], m.goals?.[0], m.about) ?? "Personalized guidance based on your interests and goals"
 
-  const matchScore = `${Math.round(Math.min(100, Math.max(0, scorePct)))}% compatibility`
-
   return {
     id: m.id ?? index + 1,
+    rank,
     title: cardTitle,
     description: cardDesc,
     timeline: "—",
@@ -177,7 +165,6 @@ function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
         "https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg",
       experience: years,
       education: educationText,
-      match: matchScore,
     },
   }
 }
@@ -185,47 +172,43 @@ function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
 const CareerExplorationPage = () => {
   const [mounted, setMounted] = useState(false)
 
-  // list from API: [(id, score), ...]
-  const [matchedMentors, setMatchedMentors] = useState<MatchedMentor[]>([])
+  // list from API: [(id, rank), ...] where rank is 1,2,3,...
+  const [rankedMentors, setRankedMentors] = useState<RankedMentor[]>([])
 
   // fetched mentor docs keyed by id
   const [mentorsById, setMentorsById] = useState<Record<string, MentorDoc>>({})
 
   useEffect(() => setMounted(true), [])
 
-  // 1) Load matched mentors with scores
+  // 1) Load matched mentors with ranks
   useEffect(() => {
     ;(async () => {
       const raw = (await getMatchedMentors()) as Array<[string, number]> | undefined
       if (!raw) return
-      // Normalize to 0..100 if needed (assume 0..1 -> *100; already-in-percent if >1)
-      const normalized: MatchedMentor[] = raw.map(([id, s]) => ({
-        id,
-        score: s > 1 ? s : s * 100,
-      }))
-      // Dedup by id, keep max score
+      // Dedup by id, keep **best (lowest)** rank
       const byId = new Map<string, number>()
-      for (const { id, score } of normalized) {
-        byId.set(id, Math.max(byId.get(id) ?? 0, score))
+      for (const [id, rank] of raw) {
+        const r = Number(rank)
+        if (!Number.isFinite(r)) continue
+        byId.set(id, Math.min(byId.get(id) ?? Infinity, r))
       }
-      const unique = Array.from(byId, ([id, score]) => ({ id, score }))
-      // Sort desc by score
-      unique.sort((a, b) => b.score - a.score)
-      setMatchedMentors(unique)
+      const unique = Array.from(byId, ([id, rank]) => ({ id, rank }))
+      // Sort ASC by rank (1 is best)
+      unique.sort((a, b) => a.rank - b.rank)
+      setRankedMentors(unique)
     })()
   }, [])
 
   // 2) Fetch mentor docs (parallel, only missing ones)
   useEffect(() => {
     ;(async () => {
-      const missing = matchedMentors.map(m => m.id).filter(id => !mentorsById[id])
+      const missing = rankedMentors.map(m => m.id).filter(id => !mentorsById[id])
       if (!missing.length) return
       const results = await Promise.allSettled(
         missing.map(async (id) => {
           const res = await fetch(`http://localhost:8000/get-mentor?mentor_id=${encodeURIComponent(id)}`)
           if (!res.ok) throw new Error(`Failed to fetch mentor ${id}: ${res.status}`)
           const doc = (await res.json()) as MentorDoc
-          // ensure the document has an id
           return { id, doc: { ...doc, id: doc.id ?? id } }
         }),
       )
@@ -235,19 +218,31 @@ const CareerExplorationPage = () => {
       }
       setMentorsById(next)
     })()
-  }, [matchedMentors])
+  }, [rankedMentors])
 
-  // 3) Build cards (top 3 by score, using real compatibility)
-  const careerPaths = useMemo(() => {
-    const top3 = matchedMentors.slice(0, 3)
-    return top3
+  // 3) Build cards for top 3 and arrange in podium order: [2nd, 1st, 3rd]
+  const podiumCards = useMemo(() => {
+    const top3 = rankedMentors.slice(0, 3) // already ASC by rank
+    if (top3.length === 0) return []
+    // Build docs
+    const cards = top3
       .map((m, idx) => {
         const doc = mentorsById[m.id]
         if (!doc) return null
-        return toCareerPath(doc, idx, m.score)
+        return toCareerPath(doc, idx, m.rank)
       })
       .filter(Boolean) as ReturnType<typeof toCareerPath>[]
-  }, [matchedMentors, mentorsById])
+
+    // Reorder to podium: want visual [2nd, 1st, 3rd] if we have all three
+    if (cards.length === 3) {
+      const first = cards.find(c => c.rank === 1)!
+      const second = cards.find(c => c.rank === 2)!
+      const third = cards.find(c => c.rank === 3)!
+      return [second, first, third]
+    }
+    // If fewer than 3, just keep ASC by rank
+    return cards.sort((a, b) => a.rank - b.rank)
+  }, [rankedMentors, mentorsById])
 
   if (!mounted) return null
 
@@ -259,25 +254,34 @@ const CareerExplorationPage = () => {
           <div className="text-center space-y-6">
             <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-4">
               <Sparkles className="w-4 h-4 mr-2" />
-              Personalized Career Recommendations
+              Personalized Mentor Matches
             </div>
             <h1 className="text-5xl font-bold text-gray-900 text-balance">
-              Your Personalized{" "}
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Mentors</span>
+              Top <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">3 Mentors</span>
             </h1>
-            <p className="text-gray-600 text-xl max-w-3xl mx-auto text-pretty leading-relaxed">
-              Based on your goals and experience, here are mentors that could be a great fit for you.
-            </p>
+            {/* <p className="text-gray-600 text-xl max-w-3xl mx-auto text-pretty leading-relaxed">
+              Ranked podium-style: <strong>1st</strong>, <strong>2nd</strong>, and <strong>3rd</strong>.
+            </p> */}
           </div>
 
-          {/* Cards */}
+          {/* Podium grid: [2nd, 1st, 3rd] */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {careerPaths.map((path, index) => {
+            {podiumCards.map((path, index) => {
               const IconComponent = path.icon
+              // Optional: slightly vary vertical position for podium feel
+              const heightClass =
+                path.rank === 1 ? "lg:-mt-6" : path.rank === 3 ? "lg:mt-6" : ""
               return (
-                <div key={String(path.id)} className="space-y-4 h-full flex flex-col" style={{ animationDelay: `${index * 200}ms` }}>
-                  <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 h-52">
+                <div key={String(path.id)} className={`space-y-4 h-full flex flex-col ${heightClass}`} style={{ animationDelay: `${index * 200}ms` }}>
+                  <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 h-52 relative">
                     <CardContent className="p-4 py-3 h-full">
+                      {/* Rank badge */}
+                      <div className="absolute top-3 right-3">
+                        <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300">
+                          Rank #{path.rank}
+                        </Badge>
+                      </div>
+
                       <div className="flex items-start space-x-4 h-full">
                         <div className="relative flex-shrink-0">
                           <img
@@ -307,13 +311,6 @@ const CareerExplorationPage = () => {
                             </div>
                           </div>
                         </div>
-
-                        <div className="text-right flex-shrink-0 flex flex-col justify-start pt-1">
-                          <div className="text-lg font-bold text-green-600 whitespace-nowrap">
-                            {path.profile.match.split(" ")[0]}
-                          </div>
-                          <div className="text-xs text-gray-500 whitespace-nowrap">Match Score</div>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -338,10 +335,7 @@ const CareerExplorationPage = () => {
                     <CardContent className="space-y-6 flex-1 flex flex-col pb-6">
                       <div className="bg-white/60 rounded-2xl p-4 space-y-4 flex-shrink-0">
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Career Overview</h4>
-
                         <div className="grid grid-cols-1 gap-3">
-                          
-
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                               <MapPin className="w-4 h-4" />
@@ -366,34 +360,12 @@ const CareerExplorationPage = () => {
                           ))}
                         </div>
                       </div>
-
-                      {/* <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Your Action Plan</h4>
-                        <div className="space-y-3">
-                          {path.nextSteps.map((step: string, stepIndex: number) => (
-                            <div key={stepIndex} className="flex items-start space-x-3">
-                              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs font-semibold text-gray-600 flex-shrink-0 mt-0.5">
-                                {stepIndex + 1}
-                              </div>
-                              <span className="text-sm text-gray-700 leading-relaxed">{step}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div> */}
-
                     </CardContent>
                   </Card>
                 </div>
               )
             })}
           </div>
-
-          {/* {careerPaths.length === 0 && (
-            <div className="text-center text-gray-600">
-              No mentors yet. Make sure <code>/get-mentor?id=…</code> returns data and CORS is allowed from your Next.js origin.
-            </div>
-          )} */}
-
         </div>
       </main>
     </div>
