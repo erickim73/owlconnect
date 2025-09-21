@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Negotiation Stream</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0b0b0c; color:#e7e7ea; margin:0; }
+    header { padding:14px 18px; border-bottom:1px solid #222; display:flex; gap:10px; align-items:center; }
+    header input { background:#111; color:#e7e7ea; border:1px solid #333; padding:6px 8px; border-radius:6px; width:280px; }
+    header button { background:#2a6df5; color:white; border:0; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    header label { opacity:.9; display:flex; align-items:center; gap:6px; }
+    #log { padding:16px 18px; height:72vh; overflow:auto; white-space:pre-wrap; }
+    .meta { color:#9aa0a6 }
+    .line { margin:0 0 .35rem 0; }
+    .status { color:#8ab4f8 }
+    .done { color:#34d399 }
+    .error { color:#f87171 }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Negotiation Stream</strong>
+    <input id="backend" placeholder="ws://127.0.0.1:8000" />
+    <input id="sid" placeholder="session id (e.g., test-session-1)" />
+    <label><input id="autostart" type="checkbox" checked /> send {"cmd":"start"} on open</label>
+    <button id="connectBtn">Connect</button>
+    <span id="status" class="meta"></span>
+  </header>
+  <div id="log"></div>
+   
+  <script>
+    const log = (txt, cls="line") => {
+      const d = document.createElement("div");
+      d.className = cls;
+      d.textContent = txt;        // #log has white-space: pre-wrap
+      document.getElementById("log").appendChild(d);
+      const logEl = document.getElementById("log");
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+  
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/negotiation/test-session-1");
+    ws.onopen    = () => log("[connected]", "status");
+    ws.onmessage = (e) => {
+      if (e.data === "[done]") { log("[done]", "done"); ws.close(); return; }
+      log(e.data);               // append each message as its own line
+    };
+    ws.onclose   = () => log("[closed]", "meta");
+    ws.onerror   = () => log("[ws error]", "error");
+  </script>
+</body>
+</html>
