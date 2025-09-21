@@ -13,27 +13,18 @@ def _to_str_id(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     return doc
 
 class OnboardingCRUD:
-    """
-    Stores the exact object you return from /onboard:
-      {
-        "paragraph_text": str,
-        "resume_data": {...},
-        "transcript_data": {...},
-        "rice_catalog": {...}
-      }
-    """
     def __init__(self, collection: AsyncIOMotorCollection):
         self.collection = collection
 
     async def create_indexes(self) -> None:
-        # helpful, but minimal
         await self.collection.create_index([("resume_data.contact.email", 1)], sparse=True)
         await self.collection.create_index([("transcript_data.majors", 1)], sparse=True)
+        await self.collection.create_index([("created_at", -1)])
 
     async def create(self, payload: Dict[str, Any]) -> str:
         doc = {
-            **payload,                      # the exact onboarding blob
-            "onboarding_complete": True,    # you've already parsed it
+            **payload,
+            "onboarding_complete": True,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
         }
@@ -46,3 +37,24 @@ class OnboardingCRUD:
         except Exception:
             return None
         return _to_str_id(doc)
+
+    async def get_most_recent(self) -> Optional[Dict[str, Any]]:
+        doc = await self.collection.find_one({}, sort=[("created_at", -1)])
+        return _to_str_id(doc)
+
+    async def update_most_recent_paragraph(self, text: str) -> Optional[Dict[str, Any]]:
+        # 1) find most recent doc
+        current = await self.collection.find_one({}, sort=[("created_at", -1)])
+        if not current:
+            return None
+        _id = current["_id"]
+
+        # 2) update it
+        await self.collection.update_one(
+            {"_id": _id},
+            {"$set": {"paragraph_text": text, "updated_at": datetime.utcnow()}}
+        )
+
+        # 3) fetch updated doc
+        updated = await self.collection.find_one({"_id": _id})
+        return _to_str_id(updated)
