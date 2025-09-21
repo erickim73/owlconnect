@@ -162,7 +162,7 @@ function toCareerPath(m: MentorDoc, index: number, rank: number) {
       name,
       title: `${job}${companySuffix}`,
       avatar:
-        m.avatar ||
+        m.profile_image ||
         "https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg",
       experience: years,
       education: educationText,
