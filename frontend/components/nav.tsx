@@ -6,18 +6,19 @@ import { BarChart3, Bot, Users, GraduationCap } from "lucide-react"
 
 export default function Navigation() {
     const pathname = usePathname()
-
     const navItems = [
-        { id: "dashboard", icon: BarChart3, label: "Dashboard", href: "/dashboard" },
-        { id: "agents", icon: Bot, label: "Agents", href: "/agents" },
+        // { id: "dashboard", icon: BarChart3, label: "Dashboard", href: "/dashboard" },
+        { id: "agents", icon: Bot, label: "Matching", href: "/agents" },
         { id: "mentors", icon: Users, label: "Mentors", href: "/mentors" },
+        { id: "outcomes", icon: Users, label: "Outcomes", href: "/outcomes" },
     ]
 
     const getActiveId = () => {
-        if (pathname === "/dashboard") return "dashboard"
+        // if (pathname === "/dashboard") return "dashboard"
         if (pathname === "/agents") return "agents"
         if (pathname === "/mentors") return "mentors"
-        return "dashboard"
+        if (pathname === "/outcomes") return "outcomes"
+        return "agents"
     }
 
     const activeId = getActiveId()
@@ -62,7 +63,7 @@ export default function Navigation() {
                     {/* Right section - fixed width, same as left */}
                     <div className="flex items-center justify-end w-48">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-sm font-medium transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-gray-500/20 cursor-pointer text-white">
-                            JR
+                            U
                         </div>
                     </div>
                 </div>
