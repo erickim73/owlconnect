@@ -214,7 +214,7 @@ export default function OnboardingFlow() {
         localStorage.setItem('should_auto_connect', 'true')
 
         // Redirect to dashboard after successful submission
-        window.location.href = "/agentslive"
+        window.location.href = "/agents"
       } else {
         // For mentors, you would implement mentor-specific submission logic
         console.log("Mentor onboarding completed:", data)
