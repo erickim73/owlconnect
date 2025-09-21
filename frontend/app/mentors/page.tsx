@@ -362,22 +362,6 @@ const CareerExplorationPage = () => {
                         <div className="grid grid-cols-1 gap-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
-                              <DollarSign className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-gray-600">Salary Range</span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900">{path.salary}</span>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4 text-blue-600" />
-                              <span className="text-sm text-gray-600">Timeline</span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900">{path.timeline}</span>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
                               <MapPin className="w-4 h-4 text-purple-600" />
                               <span className="text-sm text-gray-600">Top Locations</span>
                             </div>
@@ -415,12 +399,6 @@ const CareerExplorationPage = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <Button className={`w-full bg-gradient-to-r ${path.gradient} text-white border-0 rounded-2xl py-3 transition-all duration-300 hover:scale-105 group shadow-lg hover:shadow-xl`}>
-                          Start Your Journey
-                          <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -434,15 +412,6 @@ const CareerExplorationPage = () => {
             </div>
           )}
 
-          <div className="text-center pt-8">
-            <Button
-              variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-900 hover:text-white bg-white rounded-2xl px-8 py-4 transition-all duration-300 hover:scale-105 shadow-sm"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Explore More Career Paths
-            </Button>
-          </div>
         </div>
       </main>
     </div>
