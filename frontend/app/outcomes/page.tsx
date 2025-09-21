@@ -1,796 +1,691 @@
 "use client"
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { Briefcase, TrendingUp, Target, Star, ChevronDown, X } from "lucide-react";
-import Navigation from "@/components/nav";
+import { useState } from "react"
+import {
+  GraduationCap,
+  FlaskConical,
+  Briefcase,
+  MapPin,
+  Building,
+  Star,
+  Award,
+  Calendar,
+  User,
+  Sparkles,
+} from "lucide-react"
+import Navigation from "@/components/nav"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
-/**
- * Mentor → Track → Domain → Location → Level
- * Left→Right branching diagram that enumerates all possible career combinations
- * for a selected mentor. Mirrors your gradient, rounded, glassy card aesthetic.
- *
- * New in this revision:
- *  - Better page padding & responsive overflow handling
- *  - Collapsible mentor dropdown (click outside to close)
- *  - Click a Track pill to "pin"/filter the graph by that track (click again to clear)
- */
-export default function MentorCareerBranchDiagram() {
-  // ------- Demo Data (mirror your people & vibes) ---------------------------
-  const mentors: Mentor[] = useMemo(
-    () => [
+const mentors = [
+  {
+    id: "sarah",
+    name: "Sarah Chen",
+    title: "Senior Software Engineer @ Google",
+    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=160&h=160&fit=crop&crop=face",
+    years: "5 years",
+    education: "CS, Stanford",
+    currentRole: "Senior SWE",
+    colorScheme: {
+      gradient: "from-blue-500 to-blue-600",
+      bgGradient: "from-blue-50 to-blue-100",
+      borderColor: "border-blue-200",
+      textColor: "text-blue-600",
+      badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+    },
+    academics: {
+      degree: "Computer Science",
+      university: "Stanford University",
+      gpa: "3.8/4.0",
+      graduationYear: "2019",
+      relevantCourses: [
+        "Data Structures & Algorithms",
+        "Machine Learning",
+        "Database Systems",
+        "Software Engineering",
+        "Computer Networks",
+      ],
+    },
+    research: {
+      lab: "Stanford AI Lab",
+      topic: "Natural Language Processing",
+      duration: "2 years",
+      publications: 3,
+      description: "Focused on transformer architectures for multilingual text understanding",
+    },
+    internships: [
       {
-        id: "sarah",
-        name: "Sarah Chen",
-        title: "Senior Software Engineer @ Google",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=160&h=160&fit=crop&crop=face",
-        years: "5 yrs",
-        education: "CS, Stanford",
-        tracks: [
-          {
-            id: "swe",
-            name: "Software Engineering",
-            icon: Briefcase,
-            gradientStops: ["#2563eb", "#06b6d4"], // blue → cyan
-            chip: "SWE",
-            domains: [
-              { id: "frontend", name: "Frontend" },
-              { id: "backend", name: "Backend" },
-              { id: "infra", name: "Infra" },
-            ],
-          },
-          {
-            id: "ds",
-            name: "Data Science",
-            icon: TrendingUp,
-            gradientStops: ["#8b5cf6", "#ec4899"], // purple → pink
-            chip: "DS",
-            domains: [
-              { id: "analytics", name: "Analytics" },
-              { id: "ml", name: "ML Eng" },
-              { id: "research", name: "Research" },
-            ],
-          },
-          {
-            id: "pm",
-            name: "Product Management",
-            icon: Target,
-            gradientStops: ["#10b981", "#059669"], // green → emerald
-            chip: "PM",
-            domains: [
-              { id: "core", name: "Core PM" },
-              { id: "growth", name: "Growth" },
-              { id: "platform", name: "Platform" },
-            ],
-          },
-        ],
-        locations: [
-          { id: "sf", name: "San Francisco" },
-          { id: "nyc", name: "New York" },
-          { id: "remote", name: "Remote" },
-        ],
-        levels: [
-          { id: "intern", name: "Intern" },
-          { id: "junior", name: "Junior" },
-          { id: "mid", name: "Mid" },
-        ],
+        company: "Google",
+        role: "Software Engineering Intern",
+        duration: "Summer 2018",
+        location: "Mountain View, CA",
+        team: "Search Infrastructure",
       },
       {
-        id: "michael",
-        name: "Michael Rodriguez",
-        title: "Lead Data Scientist @ Netflix",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160&h=160&fit=crop&crop=face",
-        years: "6 yrs",
-        education: "Stats PhD, MIT",
-        tracks: [
-          {
-            id: "ds",
-            name: "Data Science",
-            icon: TrendingUp,
-            gradientStops: ["#8b5cf6", "#ec4899"],
-            chip: "DS",
-            domains: [
-              { id: "analytics", name: "Analytics" },
-              { id: "ml", name: "ML Eng" },
-              { id: "causal", name: "Causal Inference" },
-            ],
-          },
-          {
-            id: "swe",
-            name: "Software Engineering",
-            icon: Briefcase,
-            gradientStops: ["#2563eb", "#06b6d4"],
-            chip: "SWE",
-            domains: [
-              { id: "platform", name: "Platform" },
-              { id: "data-eng", name: "Data Eng" },
-              { id: "ml-platform", name: "ML Platform" },
-            ],
-          },
-        ],
-        locations: [
-          { id: "la", name: "Los Angeles" },
-          { id: "nyc", name: "New York" },
-          { id: "remote", name: "Remote" },
-        ],
-        levels: [
-          { id: "intern", name: "Intern" },
-          { id: "junior", name: "Junior" },
-          { id: "senior", name: "Senior" },
-        ],
-      },
-      {
-        id: "jessica",
-        name: "Jessica Park",
-        title: "Senior PM @ Stripe",
-        avatar:
-          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=160&h=160&fit=crop&crop=face",
-        years: "4 yrs",
-        education: "MBA, Wharton",
-        tracks: [
-          {
-            id: "pm",
-            name: "Product Management",
-            icon: Target,
-            gradientStops: ["#10b981", "#059669"],
-            chip: "PM",
-            domains: [
-              { id: "core", name: "Core PM" },
-              { id: "growth", name: "Growth" },
-              { id: "platform", name: "Platform" },
-            ],
-          },
-          {
-            id: "swe",
-            name: "Software Engineering",
-            icon: Briefcase,
-            gradientStops: ["#2563eb", "#06b6d4"],
-            chip: "SWE",
-            domains: [
-              { id: "frontend", name: "Frontend" },
-              { id: "backend", name: "Backend" },
-            ],
-          },
-        ],
-        locations: [
-          { id: "sv", name: "Silicon Valley" },
-          { id: "nyc", name: "New York" },
-          { id: "remote", name: "Remote" },
-        ],
-        levels: [
-          { id: "junior", name: "Junior" },
-          { id: "mid", name: "Mid" },
-          { id: "senior", name: "Senior" },
-        ],
+        company: "Facebook",
+        role: "Software Engineering Intern",
+        duration: "Summer 2017",
+        location: "Menlo Park, CA",
+        team: "News Feed",
       },
     ],
-    []
-  );
+  },
+  {
+    id: "michael",
+    name: "Michael Rodriguez",
+    title: "Lead Data Scientist @ Netflix",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160&h=160&fit=crop&crop=face",
+    years: "6 years",
+    education: "Stats PhD, MIT",
+    currentRole: "Lead Data Scientist",
+    colorScheme: {
+      gradient: "from-purple-500 to-purple-600",
+      bgGradient: "from-purple-50 to-purple-100",
+      borderColor: "border-purple-200",
+      textColor: "text-purple-600",
+      badgeColor: "bg-purple-100 text-purple-700 border-purple-200",
+    },
+    academics: {
+      degree: "Statistics PhD",
+      university: "MIT",
+      gpa: "3.9/4.0",
+      graduationYear: "2018",
+      relevantCourses: [
+        "Statistical Learning Theory",
+        "Bayesian Methods",
+        "Causal Inference",
+        "Time Series Analysis",
+        "Optimization Theory",
+      ],
+    },
+    research: {
+      lab: "MIT CSAIL",
+      topic: "Causal Machine Learning",
+      duration: "4 years",
+      publications: 8,
+      description: "Developed novel methods for causal discovery in high-dimensional data",
+    },
+    internships: [
+      {
+        company: "Netflix",
+        role: "Data Science Intern",
+        duration: "Summer 2017",
+        location: "Los Gatos, CA",
+        team: "Recommendation Systems",
+      },
+      {
+        company: "Uber",
+        role: "Data Science Intern",
+        duration: "Summer 2016",
+        location: "San Francisco, CA",
+        team: "Marketplace Analytics",
+      },
+    ],
+  },
+  {
+    id: "jessica",
+    name: "Jessica Park",
+    title: "Senior PM @ Stripe",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=160&h=160&fit=crop&crop=face",
+    years: "4 years",
+    education: "MBA, Wharton",
+    currentRole: "Senior Product Manager",
+    colorScheme: {
+      gradient: "from-green-500 to-green-600",
+      bgGradient: "from-green-50 to-green-100",
+      borderColor: "border-green-200",
+      textColor: "text-green-600",
+      badgeColor: "bg-green-100 text-green-700 border-green-200",
+    },
+    academics: {
+      degree: "MBA",
+      university: "Wharton School",
+      gpa: "3.7/4.0",
+      graduationYear: "2020",
+      relevantCourses: [
+        "Product Strategy",
+        "Data Analytics",
+        "Operations Management",
+        "Marketing Strategy",
+        "Entrepreneurship",
+      ],
+    },
+    research: {
+      lab: "Wharton Customer Analytics",
+      topic: "Consumer Behavior in Fintech",
+      duration: "1.5 years",
+      publications: 2,
+      description: "Studied adoption patterns of digital payment solutions across demographics",
+    },
+    internships: [
+      {
+        company: "Stripe",
+        role: "Product Management Intern",
+        duration: "Summer 2019",
+        location: "San Francisco, CA",
+        team: "Growth",
+      },
+      {
+        company: "Square",
+        role: "Strategy & Operations Intern",
+        duration: "Summer 2018",
+        location: "San Francisco, CA",
+        team: "Seller Experience",
+      },
+    ],
+  },
+]
 
-  const [selectedMentorId, setSelectedMentorId] = useState<string>(mentors[0].id);
-  const mentor = mentors.find((m) => m.id === selectedMentorId)!;
+const menteeProfile = {
+  name: "You",
+  title: "Aspiring Tech Professional",
+  avatar: "/professional-student-avatar.jpg",
+  academics: {
+    degree: "Computer Science (In Progress)",
+    university: "Your University",
+    gpa: "3.6/4.0",
+    currentYear: "Junior",
+    completedCourses: ["Introduction to Programming", "Data Structures", "Algorithms", "Database Fundamentals"],
+    plannedCourses: ["Machine Learning", "Software Engineering", "Computer Networks"],
+  },
+  research: {
+    status: "Looking for opportunities",
+    interests: ["AI/ML", "Web Development", "Data Science"],
+    experience: "None yet",
+  },
+  internships: {
+    status: "Seeking first internship",
+    targetCompanies: ["Google", "Microsoft", "Meta", "Netflix"],
+    preferredRoles: ["Software Engineering", "Data Science"],
+  },
+}
 
-  const trackNameById = useMemo(() => {
-    const map: Record<string, string> = {};
-    mentor.tracks.forEach((t) => (map[t.id] = t.name));
-    return map;
-  }, [mentor]);
+export default function CareerPathsPage() {
+  const [selectedMentor, setSelectedMentor] = useState(mentors[0])
+  const [activeSection, setActiveSection] = useState<"academics" | "research" | "internships">("academics")
 
-  // ------- Layout & measurement --------------------------------------------
-  const outerScrollRef = useRef<HTMLDivElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const nodeRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const [centers, setCenters] = useState<Record<string, Point>>({});
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [filterTrackId, setFilterTrackId] = useState<string | null>(null);
-
-  // Columns (left→right): mentor, tracks, domains (scoped by track), locations, levels
-  const columns = useMemo(() => buildColumns(mentor), [mentor]);
-  const edges = useMemo(() => buildEdges(columns), [columns]);
-  const comboCount = useMemo(() => countCombos(mentor), [mentor]);
-
-  useLayoutEffect(() => {
-    function measure() {
-      if (!containerRef.current) return;
-      const parentRect = containerRef.current.getBoundingClientRect();
-      const next: Record<string, Point> = {};
-      nodeRefs.current.forEach((el, id) => {
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        next[id] = {
-          x: r.left - parentRect.left + r.width / 2,
-          y: r.top - parentRect.top + r.height / 2,
-        };
-      });
-      setCenters(next);
-    }
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (containerRef.current) ro.observe(containerRef.current);
-    const onScroll = () => measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", onScroll, true);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", onScroll, true);
-    };
-  }, [columns]);
-
-  // Utility: attach ref into our map
-  const attachRef = (id: string) => (el: HTMLDivElement | null) => {
-    nodeRefs.current.set(id, el);
-  };
-
-  const toggleTrackFilter = (trackId?: string) => {
-    if (!trackId) return;
-    setFilterTrackId((cur) => (cur === trackId ? null : trackId));
-  };
-
-  const isEdgeActive = (e: Edge) => {
-    const hoveredActive =
-      !hoveredId || e.fromId === hoveredId || e.toId === hoveredId ||
-      e.trackId === hoveredId || e.columnFromId === hoveredId || e.columnToId === hoveredId;
-    const filterActive = !filterTrackId || e.trackId === filterTrackId;
-    return hoveredActive && filterActive;
-  };
-
-  const isNodeMuted = (node: ColumnNode) => {
-    if (!filterTrackId) return false;
-    // Mentor, location, level nodes are never muted; track & domain nodes only if mismatch
-    if (node.col === 1 || node.col === 2) {
-      return node.trackId && node.trackId !== filterTrackId;
-    }
-    return false;
-  };
-
-  // ------- Rendering --------------------------------------------------------
   return (
-    <div className="relative w-full">
-        <Navigation/>
-      {/* Header / Controls */}
-      
-      <div className="mt-10 ml-20 mr-20 mb-4 md:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 px-4 md:px-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Career Paths by Mentor</h2>
-          <p className="text-gray-600">
-            Complete combinations across Track → Domain → Location → Level. Hover or click a Track to filter.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <MentorSelect
-            mentors={mentors}
-            value={selectedMentorId}
-            onChange={(id) => {
-              setSelectedMentorId(id);
-              setFilterTrackId(null);
-            }}
-          />
-          <div className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-sm border border-gray-200 whitespace-nowrap">
-            {comboCount.toLocaleString()} combinations
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <Navigation />
+
+      <div className="border-b border-blue-200/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-4">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Career Path Comparison
+            </div>
+            <h1 className="text-5xl font-bold text-gray-900 text-balance">
+              Compare Your Journey with{" "}
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Successful Mentors
+              </span>
+            </h1>
+            <p className="text-gray-600 text-xl max-w-3xl mx-auto text-pretty leading-relaxed">
+              See exactly how your academic path, research interests, and internship goals align with mentors who&apos;ve
+              achieved success in your target field.
+            </p>
           </div>
-          {filterTrackId && (
-            <button
-              onClick={() => setFilterTrackId(null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 text-white text-sm shadow hover:opacity-90"
-              title="Clear track filter"
-            >
-              <X className="w-4 h-4" />
-              {trackNameById[filterTrackId]}
-            </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mb-12">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select a Mentor to Compare</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {mentors.map((mentor) => (
+              <Card
+                key={mentor.id}
+                className={`cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] bg-white border-2 rounded-2xl ${
+                  selectedMentor.id === mentor.id
+                    ? `${mentor.colorScheme.borderColor} bg-gradient-to-br ${mentor.colorScheme.bgGradient} shadow-lg`
+                    : "border-gray-200 hover:border-blue-200"
+                }`}
+                onClick={() => setSelectedMentor(mentor)}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <img
+                        src={mentor.avatar || "/placeholder.svg"}
+                        alt={mentor.name}
+                        className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-md"
+                      />
+                      {selectedMentor.id === mentor.id && (
+                        <div
+                          className={`absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r ${mentor.colorScheme.gradient} rounded-full flex items-center justify-center`}
+                        >
+                          <Star className="w-3 h-3 text-white fill-current" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900 text-lg">{mentor.name}</h3>
+                      <p className="text-sm text-gray-600 leading-tight">{mentor.title}</p>
+                      <div className="flex items-center space-x-2 mt-2 text-xs text-gray-500">
+                        <span>{mentor.years}</span>
+                        <span>•</span>
+                        <span>{mentor.education}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-2 shadow-sm">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                {
+                  key: "academics",
+                  label: "Academic Journey",
+                  icon: GraduationCap,
+                  gradient: "from-blue-500 to-blue-600",
+                },
+                {
+                  key: "research",
+                  label: "Research Experience",
+                  icon: FlaskConical,
+                  gradient: "from-purple-500 to-purple-600",
+                },
+                {
+                  key: "internships",
+                  label: "Internships",
+                  icon: Briefcase,
+                  gradient: "from-green-500 to-green-600",
+                },
+              ].map(({ key, label, icon: Icon, gradient }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveSection(key as any)}
+                  className={`flex items-center justify-center space-x-2 px-6 py-4 rounded-xl text-sm font-medium transition-all duration-300 ${
+                    activeSection === key
+                      ? `bg-gradient-to-r ${gradient} text-white shadow-lg`
+                      : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{label.split(" ")[0]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {/* Academic Journey Comparison */}
+          {activeSection === "academics" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Mentee Section (Left) */}
+              <Card className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-xl flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">Your Academic Journey</span>
+                      <p className="text-sm text-gray-600 font-normal">Current Progress</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-gray-50/70 rounded-2xl p-4 space-y-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Your Education Details</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Degree:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.academics.degree}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">University:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.academics.university}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Current GPA:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.academics.gpa}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Year:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.academics.currentYear}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Courses Completed</h4>
+                      <div className="space-y-2">
+                        {menteeProfile.academics.completedCourses.map((course, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm text-gray-700">{course}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Planned Courses</h4>
+                      <div className="space-y-2">
+                        {menteeProfile.academics.plannedCourses.map((course, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                            <span className="text-sm text-gray-600">{course}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`bg-white/80 backdrop-blur-sm border-2 ${selectedMentor.colorScheme.borderColor} rounded-3xl`}
+              >
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 bg-gradient-to-r ${selectedMentor.colorScheme.gradient} rounded-xl flex items-center justify-center`}
+                    >
+                      <GraduationCap className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">{selectedMentor.name}&apos;s Journey</span>
+                      <p className="text-sm text-gray-600 font-normal">Completed Path</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div
+                    className={`bg-gradient-to-br ${selectedMentor.colorScheme.bgGradient} rounded-2xl p-4 space-y-4`}
+                  >
+                    <h4 className="font-semibold text-gray-900 mb-3">Education Details</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Degree:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.academics.degree}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">University:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.academics.university}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Final GPA:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.academics.gpa}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Graduated:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.academics.graduationYear}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">Key Courses Taken</h4>
+                      <div className="space-y-2">
+                        {selectedMentor.academics.relevantCourses.map((course, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <div
+                              className={`w-2 h-2 bg-gradient-to-r ${selectedMentor.colorScheme.gradient} rounded-full`}
+                            ></div>
+                            <span className="text-sm text-gray-700">{course}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Research Experience Comparison */}
+          {activeSection === "research" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Mentee Research Section */}
+              <Card className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-xl flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">Your Research Goals</span>
+                      <p className="text-sm text-gray-600 font-normal">Current Status</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-gray-50/70 rounded-2xl p-4 space-y-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Research Status</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Current Status:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.research.status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Experience:</span>
+                        <span className="font-medium text-gray-900">{menteeProfile.research.experience}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Research Interests</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {menteeProfile.research.interests.map((interest, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs bg-white/70 border-gray-300 text-gray-700 px-3 py-1"
+                        >
+                          {interest}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`bg-white/80 backdrop-blur-sm border-2 ${selectedMentor.colorScheme.borderColor} rounded-3xl`}
+              >
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 bg-gradient-to-r ${selectedMentor.colorScheme.gradient} rounded-xl flex items-center justify-center`}
+                    >
+                      <FlaskConical className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">{selectedMentor.name}&apos;s Research</span>
+                      <p className="text-sm text-gray-600 font-normal">Completed Experience</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div
+                    className={`bg-gradient-to-br ${selectedMentor.colorScheme.bgGradient} rounded-2xl p-4 space-y-4`}
+                  >
+                    <h4 className="font-semibold text-gray-900 mb-3">Research Details</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Lab:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.research.lab}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Focus Area:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.research.topic}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duration:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.research.duration}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Publications:</span>
+                        <span className="font-medium text-gray-900">{selectedMentor.research.publications}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Research Description</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed bg-white/50 rounded-xl p-3">
+                      {selectedMentor.research.description}
+                    </p>
+                    <div className={`mt-4 flex items-center space-x-2 text-sm ${selectedMentor.colorScheme.textColor}`}>
+                      <Award className="w-4 h-4" />
+                      <span>{selectedMentor.research.publications} peer-reviewed publications</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Internships Comparison */}
+          {activeSection === "internships" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Mentee Internship Goals */}
+              <Card className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-xl flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">Your Internship Goals</span>
+                      <p className="text-sm text-gray-600 font-normal">Target Companies & Roles</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-gray-50/70 rounded-2xl p-4">
+                    <h4 className="font-semibold text-gray-900 mb-3">Current Status</h4>
+                    <p className="text-sm text-gray-700">{menteeProfile.internships.status}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Target Companies</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {menteeProfile.internships.targetCompanies.map((company, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs bg-white/70 border-gray-300 text-gray-700 px-3 py-1"
+                        >
+                          {company}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Preferred Roles</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {menteeProfile.internships.preferredRoles.map((role, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs bg-white/70 border-green-300 text-green-700 px-3 py-1"
+                        >
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className={`bg-white/80 backdrop-blur-sm border-2 ${selectedMentor.colorScheme.borderColor} rounded-3xl`}
+              >
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 bg-gradient-to-r ${selectedMentor.colorScheme.gradient} rounded-xl flex items-center justify-center`}
+                    >
+                      <Briefcase className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">{selectedMentor.name}&apos;s Internships</span>
+                      <p className="text-sm text-gray-600 font-normal">Completed Experience</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {selectedMentor.internships.map((internship, index) => (
+                      <div
+                        key={index}
+                        className={`bg-gradient-to-br ${selectedMentor.colorScheme.bgGradient} rounded-2xl p-4`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{internship.role}</h4>
+                            <p className={`font-medium ${selectedMentor.colorScheme.textColor}`}>
+                              {internship.company}
+                            </p>
+                          </div>
+                          <div className="text-right text-sm text-gray-600">
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{internship.duration}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 mt-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>{internship.location}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm">
+                          <Building className="w-4 h-4 text-gray-500" />
+                          <span className="text-gray-600">Team:</span>
+                          <span className="font-medium text-gray-900">{internship.team}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Scroll container with improved padding */}
-      <div ref={outerScrollRef} className="relative overflow-x-auto overflow-y-visible">
-        <div
-          ref={containerRef}
-          className="relative min-w-[1100px] px-4 md:px-10 pb-10 pt-2"
-        >
-          {/* SVG edges layer */}
-          <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
-            <defs>
-              {mentor.tracks.map((t) => (
-                <linearGradient
-                  key={`grad-${t.id}`}
-                  id={`grad-${t.id}`}
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
+        <div className="mt-16 text-center">
+          <Card className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl overflow-hidden">
+            <CardContent className="p-12">
+              <h3 className="text-3xl font-bold text-gray-900 mb-4">Ready to Follow Their Path?</h3>
+              <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg leading-relaxed">
+                Connect with {selectedMentor.name} to get personalized guidance on academics, research opportunities,
+                and internship strategies.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  size="lg"
+                  className={`bg-gradient-to-r ${selectedMentor.colorScheme.gradient} hover:opacity-90 text-white border-0 rounded-2xl px-8 py-4 transition-all duration-300 hover:scale-105 shadow-lg`}
                 >
-                  <stop offset="0%" stopColor={t.gradientStops[0]} />
-                  <stop offset="100%" stopColor={t.gradientStops[1]} />
-                </linearGradient>
-              ))}
-            </defs>
-
-            {edges.map((e) => {
-              const a = centers[e.fromId];
-              const b = centers[e.toId];
-              if (!a || !b) return null;
-              const dx = Math.max(60, Math.abs(b.x - a.x) * 0.35);
-              const d = `M ${a.x},${a.y} C ${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`;
-              const active = isEdgeActive(e);
-              return (
-                <path
-                  key={e.id}
-                  d={d}
-                  fill="none"
-                  stroke={`url(#grad-${e.trackId})`}
-                  strokeWidth={active ? 3 : 1.5}
-                  opacity={active ? 0.9 : 0.15}
-                />
-              );
-            })}
-          </svg>
-
-          {/* Columns */}
-          <div className="ml-20 relative grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-8">
-            {/* Mentor column */}
-            <div className="space-y-4">
-              <SectionLabel>Mentor</SectionLabel>
-              <div
-                ref={attachRef(columns[0][0].id)}
-                onMouseEnter={() => setHoveredId(columns[0][0].id)}
-                onMouseLeave={() => setHoveredId(null)}
-                className="group rounded-3xl border border-gray-200 bg-white/70 backdrop-blur p-5 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <img
-                      src={mentor.avatar}
-                      alt={mentor.name}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-white shadow"
-                    />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r from-green-400 to-green-500 rounded-full flex items-center justify-center">
-                      <Star className="w-3 h-3 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">{mentor.name}</div>
-                    <div className="text-sm text-gray-600">{mentor.title}</div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                      <span>{mentor.years}</span>
-                      <span>•</span>
-                      <span>{mentor.education}</span>
-                    </div>
-                  </div>
-                </div>
+                  Connect with {selectedMentor.name}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-2 border-gray-300 text-gray-700 hover:bg-gray-900 hover:text-white bg-white rounded-2xl px-8 py-4 transition-all duration-300 hover:scale-105"
+                >
+                  Explore All Mentors
+                </Button>
               </div>
-            </div>
-
-            {/* Track column */}
-            <div className="space-y-4">
-              <SectionLabel>Track</SectionLabel>
-              <div className="space-y-3">
-                {columns[1].map((n) => (
-                  <NodeCard
-                    key={n.id}
-                    id={n.id}
-                    title={n.label}
-                    chip={n.trackChip}
-                    gradientStops={n.gradientStops}
-                    Icon={n.icon}
-                    onClick={() => toggleTrackFilter(n.trackId)}
-                    muted={isNodeMuted(n)}
-                    onHover={setHoveredId}
-                    attachRef={attachRef}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Domain column */}
-            <div className="space-y-4">
-              <SectionLabel>Domain</SectionLabel>
-              <div className="flex flex-wrap gap-3">
-                {columns[2].map((n) => (
-                  <NodePill
-                    key={n.id}
-                    id={n.id}
-                    label={n.label}
-                    trackId={n.trackId}
-                    gradientStops={n.gradientStops}
-                    muted={isNodeMuted(n)}
-                    onHover={setHoveredId}
-                    attachRef={attachRef}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Location column */}
-            <div className="space-y-4">
-              <SectionLabel>Location</SectionLabel>
-              <div className="flex flex-wrap gap-3">
-                {columns[3].map((n) => (
-                  <NodePlain
-                    key={n.id}
-                    id={n.id}
-                    label={n.label}
-                    onHover={setHoveredId}
-                    attachRef={attachRef}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Level column */}
-            <div className="space-y-4">
-              <SectionLabel>Level</SectionLabel>
-              <div className="flex flex-wrap gap-3">
-                {columns[4].map((n) => (
-                  <NodePlain
-                    key={n.id}
-                    id={n.id}
-                    label={n.label}
-                    onHover={setHoveredId}
-                    attachRef={attachRef}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
     </div>
-  );
-}
-
-// -------------------------- Types ------------------------------------------
-
-type Point = { x: number; y: number };
-
-type Mentor = {
-  id: string;
-  name: string;
-  title: string;
-  avatar: string;
-  years: string;
-  education: string;
-  tracks: Track[];
-  locations: SimpleOpt[];
-  levels: SimpleOpt[];
-};
-
-type SimpleOpt = { id: string; name: string };
-
-type Track = {
-  id: string;
-  name: string;
-  icon: any; // lucide icon component
-  gradientStops: [string, string];
-  chip: string;
-  domains: SimpleOpt[];
-};
-
-type ColumnNode = {
-  id: string;
-  label: string;
-  col: number; // 0..4
-  // Optional visuals
-  gradientStops?: [string, string];
-  icon?: any;
-  trackId?: string;
-  trackChip?: string;
-};
-
-type Edge = {
-  id: string;
-  fromId: string;
-  toId: string;
-  trackId: string; // used for stroke gradient
-  columnFromId?: string; // for hover convenience
-  columnToId?: string;
-};
-
-// -------------------------- Data → Columns/Edges ---------------------------
-
-function buildColumns(mentor: Mentor): ColumnNode[][] {
-  const mentorNode: ColumnNode = {
-    id: `mentor:${mentor.id}`,
-    label: mentor.name,
-    col: 0,
-  };
-
-  const trackNodes: ColumnNode[] = mentor.tracks.map((t) => ({
-    id: `track:${mentor.id}:${t.id}`,
-    label: t.name,
-    col: 1,
-    gradientStops: t.gradientStops,
-    icon: t.icon,
-    trackId: t.id,
-    trackChip: t.chip,
-  }));
-
-  // Domains are scoped to a track (so duplicates across tracks still render distinctly)
-  const domainNodes: ColumnNode[] = mentor.tracks.flatMap((t) =>
-    t.domains.map((d) => ({
-      id: `domain:${mentor.id}:${t.id}:${d.id}`,
-      label: d.name,
-      col: 2,
-      trackId: t.id,
-      gradientStops: t.gradientStops,
-    }))
-  );
-
-  const locationNodes: ColumnNode[] = mentor.locations.map((l) => ({
-    id: `loc:${mentor.id}:${l.id}`,
-    label: l.name,
-    col: 3,
-  }));
-
-  const levelNodes: ColumnNode[] = mentor.levels.map((lv) => ({
-    id: `lvl:${mentor.id}:${lv.id}`,
-    label: lv.name,
-    col: 4,
-  }));
-
-  return [[mentorNode], trackNodes, domainNodes, locationNodes, levelNodes];
-}
-
-function buildEdges(cols: ColumnNode[][]): Edge[] {
-  const [mentorCol, trackCol, domainCol, locCol, levelCol] = cols;
-  const edges: Edge[] = [];
-
-  // mentor → track
-  for (const t of trackCol) {
-    edges.push({
-      id: `e:${mentorCol[0].id}->${t.id}`,
-      fromId: mentorCol[0].id,
-      toId: t.id,
-      trackId: (t.trackId as string)!,
-      columnFromId: mentorCol[0].id,
-      columnToId: t.id,
-    });
-  }
-
-  // track → domain (respect track ownership)
-  for (const d of domainCol) {
-    const trackId = d.trackId!;
-    const parentTrack = trackCol.find((t) => t.trackId === trackId)!;
-    edges.push({
-      id: `e:${parentTrack.id}->${d.id}`,
-      fromId: parentTrack.id,
-      toId: d.id,
-      trackId,
-      columnFromId: parentTrack.id,
-      columnToId: d.id,
-    });
-  }
-
-  // domain → location (complete; keep track color)
-  for (const d of domainCol) {
-    for (const l of locCol) {
-      edges.push({
-        id: `e:${d.id}->${l.id}`,
-        fromId: d.id,
-        toId: l.id,
-        trackId: d.trackId!,
-        columnFromId: d.id,
-        columnToId: l.id,
-      });
-    }
-  }
-
-  // location → level (complete; inherit color from upstream domain via fiction)
-  for (const d of domainCol) {
-    for (const l of locCol) {
-      for (const lv of levelCol) {
-        edges.push({
-          id: `e:${l.id}:${d.trackId}->${lv.id}:${d.id}`,
-          fromId: l.id,
-          toId: lv.id,
-          trackId: d.trackId!,
-          columnFromId: l.id,
-          columnToId: lv.id,
-        });
-      }
-    }
-  }
-
-  return edges;
-}
-
-function countCombos(mentor: Mentor): number {
-  // Sum over tracks of (domains × locations × levels)
-  const base = mentor.locations.length * mentor.levels.length;
-  return mentor.tracks.reduce((acc, t) => acc + t.domains.length * base, 0);
-}
-
-// -------------------------- UI Bits ----------------------------------------
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-xs uppercase tracking-wider text-gray-500 font-semibold pl-1">
-      {children}
-    </div>
-  );
-}
-
-function NodeCard({
-  id,
-  title,
-  chip,
-  gradientStops,
-  Icon,
-  attachRef,
-  onHover,
-  onClick,
-  muted,
-}: {
-  id: string;
-  title: string;
-  chip?: string;
-  gradientStops?: [string, string];
-  Icon?: any;
-  attachRef: (id: string) => (el: HTMLDivElement | null) => void;
-  onHover: (id: string | null) => void;
-  onClick?: () => void;
-  muted?: boolean;
-}) {
-  return (
-    <motion.div
-      layout
-      ref={attachRef(id)}
-      onMouseEnter={() => onHover(id)}
-      onMouseLeave={() => onHover(null)}
-      onClick={onClick}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className={`group rounded-3xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer ${
-        muted ? "opacity-40" : ""
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="w-11 h-11 rounded-2xl flex items-center justify-center"
-          style={{
-            background: `linear-gradient(90deg, ${gradientStops?.[0]}, ${gradientStops?.[1]})`,
-          }}
-        >
-          {Icon ? <Icon className="w-6 h-6 text-white" /> : null}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 truncate">{title}</div>
-          {chip ? (
-            <div className="text-[10px] mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-black/5 text-gray-700 border border-gray-200">
-              {chip}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function NodePill({
-  id,
-  label,
-  trackId,
-  gradientStops,
-  attachRef,
-  onHover,
-  muted,
-}: {
-  id: string;
-  label: string;
-  trackId?: string;
-  gradientStops?: [string, string];
-  attachRef: (id: string) => (el: HTMLDivElement | null) => void;
-  onHover: (id: string | null) => void;
-  muted?: boolean;
-}) {
-  return (
-    <motion.div
-      layout
-      ref={attachRef(id)}
-      onMouseEnter={() => onHover(id)}
-      onMouseLeave={() => onHover(null)}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white/70 backdrop-blur shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all w-max ${
-        muted ? "opacity-40" : ""
-      }`}
-    >
-      <span
-        className="inline-block w-2 h-2 rounded-full"
-        style={{ background: `linear-gradient(90deg, ${gradientStops?.[0]}, ${gradientStops?.[1]})` }}
-        title={trackId}
-      />
-      <span className="text-sm text-gray-800">{label}</span>
-    </motion.div>
-  );
-}
-
-function NodePlain({
-  id,
-  label,
-  attachRef,
-  onHover,
-}: {
-  id: string;
-  label: string;
-  attachRef: (id: string) => (el: HTMLDivElement | null) => void;
-  onHover: (id: string | null) => void;
-}) {
-  return (
-    <motion.div
-      layout
-      ref={attachRef(id)}
-      onMouseEnter={() => onHover(id)}
-      onMouseLeave={() => onHover(null)}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border border-gray-200 bg-white/70 backdrop-blur shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all w-max"
-    >
-      <span className="text-sm text-gray-800">{label}</span>
-    </motion.div>
-  );
-}
-
-function MentorSelect({
-  mentors,
-  value,
-  onChange,
-}: {
-  mentors: Mentor[];
-  value: string;
-  onChange: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  const m = mentors.find((mm) => mm.id === value)!;
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-3 rounded-full border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition-all"
-        title="Choose mentor"
-      >
-        <img src={m.avatar} className="w-7 h-7 rounded-full object-cover" alt={m.name} />
-        <span className="text-sm text-gray-800 font-medium">{m.name}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur rounded-2xl border border-gray-200 shadow-xl p-2 z-10">
-          {mentors.map((mm) => (
-            <button
-              key={mm.id}
-              onClick={() => {
-                onChange(mm.id);
-                setOpen(false);
-              }}
-              className={`w-full text-left flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-100 ${
-                mm.id === value ? "bg-gray-50" : ""
-              }`}
-            >
-              <img src={mm.avatar} className="w-7 h-7 rounded-full object-cover" alt={mm.name} />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{mm.name}</div>
-                <div className="text-xs text-gray-500">{mm.title}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  )
 }

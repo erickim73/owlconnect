@@ -130,11 +130,11 @@ const CareerExplorationPage = () => {
                         <h1 className="text-5xl font-bold text-gray-900 text-balance">
                             Your Personalized{" "}
                             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                Career Paths
+                                Mentors
                             </span>
                         </h1>
                         <p className="text-gray-600 text-xl max-w-3xl mx-auto text-pretty leading-relaxed">
-                            Based on your goals and experience, here are three career trajectories that could be a great fit for you.
+                            Based on your goals and experience, here are three mentors that could be a great fit for you.
                         </p>
                     </div>
 
