@@ -10,6 +10,8 @@ from sentence_transformers import SentenceTransformer, util
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+import asyncio
+import requests
 
 import dotenv
 dotenv.load_dotenv()
@@ -17,7 +19,7 @@ dotenv.load_dotenv()
 kimi_client = ChatOpenAI(
     model="openai/gpt-4o-mini",
     base_url="https://openrouter.ai/api/v1",
-    api_key="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",
+    api_key="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",
     temperature=0,
 )
 
@@ -30,6 +32,7 @@ def clean_response(text: str) -> str:
     text = re.sub(r"◁.*?▷", "", text)
     text = " ".join(text.split())
     return text.strip()
+
 
 
 def generate_llm_response(
@@ -99,7 +102,53 @@ class Profile:
     availability: List[str] = field(default_factory=list)
     communication_style: str = ""
     goals: List[str] = field(default_factory=list)
-    interests: List[str] = field(default_factory=list)  # if you still reference "interests"
+    interests: List[str] = field(default_factory=list) 
+    
+    
+def json_to_profile(data: Dict[str, Any]) -> Profile:
+    """
+    Convert JSON data (like the resume/transcript object) into a Profile object.
+    Falls back to defaults if fields are missing.
+    """
+
+    resume = data.get("resume_data", {})
+    contact = resume.get("contact", {})
+
+    # Map some fields
+    name = contact.get("name", "")
+
+    # Pull out skills (flatten them)
+    skills_dict = resume.get("skills", {})
+    skills = []
+    for key, vals in skills_dict.items():
+        skills.extend(vals)
+
+    # Extract from paragraph_text if present
+    paragraph_text = data.get("paragraph_text", "")
+    # very simple parsing demo:
+    hobbies, life_interests, mbti, career_goals = [], [], "", []
+    if "Hobbies and Interests:" in paragraph_text:
+        hobbies = [paragraph_text.split("Hobbies and Interests:")[1].split("Personality")[0].strip()]
+    if "Personality and MBTI:" in paragraph_text:
+        mbti = paragraph_text.split("Personality and MBTI:")[1].split("Career")[0].strip()
+    if "Career Goals and Aspirations:" in paragraph_text:
+        career_goals = [paragraph_text.split("Career Goals and Aspirations:")[1].strip()]
+
+    return Profile(
+        hobbies=hobbies,
+        life_interests=life_interests,
+        mbti=mbti,
+        career_interests=career_goals,
+        course_descriptions=[c["title"] for c in data.get("transcript_data", {}).get("courses_completed", [])],
+        job_description=[exp["role"] for exp in resume.get("experience", [])],
+        name=name,
+        skills=skills,
+        experience=len(resume.get("experience", [])),  # simple count as proxy
+        availability=[],  # Not provided in JSON
+        communication_style="",  # Not provided in JSON
+        goals=career_goals,
+        interests=hobbies + life_interests,
+    )
 
 
 class BaseAgent:
@@ -485,19 +534,36 @@ Mentor {i}: {mentor['name']}
                 
                 if response.startswith("YES") or turn_idx >= 6:
                     print("\n=== NEGOTIATION (summary) ===")
-                    print("Negotiation successful!\n")
+                    print("✅ Negotiation successful!\n")
                     return True, convo
                 
                 # Check for explicit rejection
                 if any(phrase in recent_convo.lower() for phrase in ["not interested", "i decline", "won't work"]):
                     print("\n=== NEGOTIATION (summary) ===")
-                    print("Negotiation unsuccessful. The parties could not reach an agreement.\n")
+                    print("❌ Negotiation unsuccessful. The parties could not reach an agreement.\n")
                     return False, convo
                 
             current, other = other, current
             current_sys = mentee_system if current is mentee else mentor_system
 
 # --- DRIVER ------------------------------------------------------------------
+
+
+PROFILE_FIELDS = [
+    "hobbies",
+    "life_interests",
+    "mbti",
+    "career_interests",
+    "course_descriptions",
+    "job_description",
+    "name",
+    "skills",
+    "experience",
+    "availability",
+    "communication_style",
+    "goals",
+    "interests",
+]
 
 def init_MAN():
 
@@ -514,69 +580,88 @@ def init_MAN():
     }
 
     # --- Define agents (use the expanded Profile fields) ---
-    mentor_A = Mentor(
-        "mentor_A", "Dr. Sharma",
-        Profile(
-            name="Dr. Sharma",
-            hobbies=["Reading sci-fi", "Building custom keyboards"],
-            life_interests=["The future of AI ethics"],
-            mbti="INTJ",
-            skills=["Python", "TensorFlow", "Transformers"],
-            experience=12,
-            availability=["Mon 2-4pm", "Thu 1-3pm"],
-            communication_style="direct",
-            goals=["Mentor next-gen AI talent", "Publish research"],
-            career_interests=["Mentoring AI talent; continuing research in cutting-edge AI."],
-            job_description=["Lead AI Scientist at Google Brain. Developing/training LLMs; tokenization, embeddings, transformers; Python + TensorFlow."]
-        ),
-        max_mentees=2
-    )
+    # mentor_A = Mentor(
+    #     "mentor_A", "Dr. Sharma",
+    #     Profile(
+    #         name="Dr. Sharma",
+    #         hobbies=["Reading sci-fi", "Building custom keyboards"],
+    #         life_interests=["The future of AI ethics"],
+    #         mbti="INTJ",
+    #         skills=["Python", "TensorFlow", "Transformers"],
+    #         experience=12,
+    #         availability=["Mon 2-4pm", "Thu 1-3pm"],
+    #         communication_style="direct",
+    #         goals=["Mentor next-gen AI talent", "Publish research"],
+    #         career_interests=["Mentoring AI talent; continuing research in cutting-edge AI."],
+    #         job_description=["Lead AI Scientist at Google Brain. Developing/training LLMs; tokenization, embeddings, transformers; Python + TensorFlow."]
+    #     ),
+    #     max_mentees=2
+    # )
 
-    mentor_B = Mentor(
-        "mentor_B", "Prof. Vance",
-        Profile(
-            name="Prof. Vance",
-            hobbies=["Visiting museums", "Classical music"],
-            life_interests=["Renaissance art history"],
-            mbti="ESFJ",
-            skills=["Research", "Writing"],
-            experience=15,
-            availability=["Tue 10-12", "Fri 9-11"],
-            communication_style="supportive",
-            goals=["Publish papers", "Achieve tenure"],
-            career_interests=["Publishing academic papers; tenure track"],
-            job_description=["Professor of History. 19th Century European culture; archival research."]
-        ),
-        max_mentees=3
-    )
+    # mentor_B = Mentor(
+    #     "mentor_B", "Prof. Vance",
+    #     Profile(
+    #         name="Prof. Vance",
+    #         hobbies=["Visiting museums", "Classical music"],
+    #         life_interests=["Renaissance art history"],
+    #         mbti="ESFJ",
+    #         skills=["Research", "Writing"],
+    #         experience=15,
+    #         availability=["Tue 10-12", "Fri 9-11"],
+    #         communication_style="supportive",
+    #         goals=["Publish papers", "Achieve tenure"],
+    #         career_interests=["Publishing academic papers; tenure track"],
+    #         job_description=["Professor of History. 19th Century European culture; archival research."]
+    #     ),
+    #     max_mentees=3
+    # )
 
-    mentee_A = Mentee(
-        "mentee_A", "Ben Carter",
-        Profile(
-            name="Ben Carter",
-            hobbies=["Building chatbots", "Strategy games"],
-            life_interests=["Sci-fi novels about AI"],
-            mbti="INTP",
-            skills=["Python", "Basics of ML"],
-            experience=2,
-            availability=["Mon 1-5pm", "Wed 3-6pm"],
-            communication_style="direct",
-            goals=["Become AI engineer working on LLMs", "Publish a paper"],
-            interests=["AI", "NLP"],
-            career_interests=["Become an AI engineer working on LLMs at a top tech company."],
-            course_descriptions=["Intro to AI; Advanced Algorithms; NLP (tokenization, embeddings, transformer architectures)."]
-        )
-    )
+    # mentee_A = Mentee(
+    #     "mentee_A", "Ben Carter",
+    #     Profile(
+    #         name="Ben Carter",
+    #         hobbies=["Building chatbots", "Strategy games"],
+    #         life_interests=["Sci-fi novels about AI"],
+    #         mbti="INTP",
+    #         skills=["Python", "Basics of ML"],
+    #         experience=2,
+    #         availability=["Mon 1-5pm", "Wed 3-6pm"],
+    #         communication_style="direct",
+    #         goals=["Become AI engineer working on LLMs", "Publish a paper"],
+    #         interests=["AI", "NLP"],
+    #         career_interests=["Become an AI engineer working on LLMs at a top tech company."],
+    #         course_descriptions=["Intro to AI; Advanced Algorithms; NLP (tokenization, embeddings, transformer architectures)."]
+    #     )
+    # )
+
+    mentee = requests.get('http://localhost:8000/users/newest', timeout=3).json()
+
+    matching_system.add_mentee(Mentee(agent_id="mentee", name=mentee.get("resume_data", "").get("contact", "").get("name", ""), profile=json_to_profile(mentee)))
 
     # --- Add agents to the system (this was missing) ---
-    matching_system.add_mentor(mentor_A)
-    matching_system.add_mentor(mentor_B)
-    matching_system.add_mentee(mentee_A)
+    mentors = requests.get("http://localhost:8000/mentors", timeout=3).json()
+    # print(mentors)
+
+    for mentor in mentors:
+        profile_data = {field: mentor.get(field) for field in PROFILE_FIELDS}
+
+        matching_system.add_mentor(
+            Mentor(
+                agent_id=mentor["id"],
+                name=mentor.get("name", ""),
+                profile=Profile(**profile_data)
+            )
+        )
+            
+    # matching_system.add_mentor(mentor_A)
+    # matching_system.add_mentor(mentor_B)
+    # matching_system.add_mentee(mentee_A)
     
-    test_cases = {
-        "A: Excellent Match": (mentor_A, mentee_A),
-        "B: Mismatched": (mentor_B, mentee_A),
-    }
+    # test_cases = {
+    #     "A: Excellent Match": (mentor_A, mentee_A),
+    #     "B: Mismatched": (mentor_B, mentee_A),
+    # }
+    
 
     top_matches = matching_system.find_top_matches_per_mentee(top_n=2)
     for mentee_id, mentors in top_matches.items():
@@ -610,11 +695,19 @@ def init_MAN():
 
     print("\n\n\033[1m=== FINAL MATCHING SUMMARY ===\033[0m")
     print("\n\033[1mMENTEE MATCHES:\033[0m")
+
+    matched_mentor = None
+    lowest_mentor_score = float("inf")
+    lowest_mentor = None
     for mentee_id, mentee in matching_system.mentees.items():
         if mentee.matched_with:
             mentor = matching_system.mentors[mentee.matched_with]
             score = mentor.compatibility_scores.get(mentee_id, 0)
             print(f"  ✓ {mentee.name} → {mentor.name}")
+            matched_mentor = mentor
+            if score < lowest_mentor_score:
+                lowest_mentor_score = score
+                lowest_mentor = mentor
 
     unmatched = [m for m in matching_system.mentees.values() if not m.matched_with]
     if unmatched:
@@ -622,24 +715,25 @@ def init_MAN():
         for m in unmatched:
             print(f"  ✗ {m.name} (No suitable match found)")
 
-    print("\n\033[1mMENTOR CAPACITY:\033[0m")
-    for mentor in matching_system.mentors.values():
-        max_mentees = mentor.max_mentees
-        current_mentees = len(mentor.current_mentees)
-        status = "\033[92m" if current_mentees > 0 else "\033[93m"
-        mentee_names = ", ".join(
-            [m.name for m in matching_system.mentees.values() if m.matched_with == mentor.agent_id]
-        ) or "None"
-        print(f"  {mentor.name}: {current_mentees}/{max_mentees} mentees {status}({mentee_names})\033[0m")
+    # print("\n\033[1mMENTOR CAPACITY:\033[0m")
+    # for mentor in matching_system.mentors.values():
+    #     max_mentees = mentor.max_mentees
+    #     current_mentees = len(mentor.current_mentees)
+    #     status = "\033[92m" if current_mentees > 0 else "\033[93m"
+    #     mentee_names = ", ".join(
+    #         [m.name for m in matching_system.mentees.values() if m.matched_with == mentor.agent_id]
+    #     ) or "None"
+    #     print(f"  {mentor.name}: {current_mentees}/{max_mentees} mentees {status}({mentee_names})\033[0m")
 
-    score_a = mentor_A.rate_compatibility(mentee_A, embedding_model)
-    inter_a  = mentor_A.component_scores.get("interpersonal_score", 0.0)
-    prof_a   = mentor_A.component_scores.get("professional_score", 0.0)
+
+    score_a = matched_mentor.rate_compatibility(mentee, embedding_model)
+    inter_a  = matched_mentor.component_scores.get("interpersonal_score", 0.0)
+    prof_a   = matched_mentor.component_scores.get("professional_score", 0.0)
 
     # Compute B once
-    score_b = mentor_B.rate_compatibility(mentee_A, embedding_model)
-    inter_b  = mentor_B.component_scores.get("interpersonal_score", 0.0)
-    prof_b   = mentor_B.component_scores.get("professional_score", 0.0)
+    score_b = lowest_mentor.rate_compatibility(mentee, embedding_model)
+    inter_b  = lowest_mentor.component_scores.get("interpersonal_score", 0.0)
+    prof_b   = lowest_mentor.component_scores.get("professional_score", 0.0)
 
     print("\n=== BENCHMARK RESULTS ===")
     print_test_case_block("Test Case A • Excellent Match", inter_a, prof_a, score_a)

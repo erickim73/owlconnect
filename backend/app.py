@@ -17,6 +17,7 @@ import re
 import PyPDF2
 import io
 from database.user_crud import OnboardingCRUD
+from database.mentors_crud import MentorsCRUD
 import certifi
 
 load_dotenv()
@@ -38,6 +39,8 @@ users_collection = db.users
 # Initialize CRUD operations
 user_crud = OnboardingCRUD(users_collection)
 
+mentors = MentorsCRUD(db.mentors)
+
 app = FastAPI()
 
 # Configure CORS
@@ -50,6 +53,25 @@ app.add_middleware(
 )
 
 app.include_router(ws_router)
+
+@app.get("/users/newest", response_model=dict)
+async def get_newest_user():
+    """
+    Get the most recently created user.
+    """
+    user = await user_crud.get_most_recent()
+    if not user:
+        raise HTTPException(status_code=404, detail="No users found")
+    return user
+
+@app.get("/mentors", response_model=list[dict])
+async def get_mentors():
+    """
+    Get all users who have indicated they want to be mentors.
+    """
+    mentorsdata = await mentors.get_all()
+    return mentorsdata
+
 
 # @app.post("/onboard")
 # async def onboard(
