@@ -178,9 +178,10 @@ const CareerExplorationPage = () => {
   const token = crypto.randomUUID();
   const router = useRouter();
 
-  const [menteeData, setMenteeData] = useState<{name: string, major: string}>({
+  const [menteeData, setMenteeData] = useState<{name: string, major: string, paragraph_text: string}>({
     name: "",
-    major: ""
+    major: "",
+    paragraph_text: ""
   })
 
   // list from API: [(id, score), ...]
@@ -205,10 +206,13 @@ const CareerExplorationPage = () => {
         }
       );
       const data = await res.json();
-      console.log(data)
+      
+      console.log(data["paragraph_text"])
+
       setMenteeData({
         name: data["resume_data"]["contact"]["name"],
-        major: data["transcript_data"]["majors"][0]
+        major: data["transcript_data"]["majors"][0],
+        paragraph_text: `${data["paragraph_text"]}`
       })
     }
     fetchUser()
@@ -302,7 +306,6 @@ const CareerExplorationPage = () => {
           {/* Podium grid: [2nd, 1st, 3rd] */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {podiumCards.map((path, index) => {
-              console.log(305, path)
               const IconComponent = path.icon
               // Optional: slightly vary vertical position for podium feel
               const heightClass = path.rank === 1 ? "lg:-mt-6" : path.rank === 3 ? "lg:mt-6" : ""

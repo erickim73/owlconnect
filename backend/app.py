@@ -190,4 +190,189 @@ async def get_matched_mentors():
 async def get_mentor(mentor_id: str):
     return await mentors.get(mentor_id)
 
+# 
+# llm call
+# 
+import json
+import httpx
+from typing import Literal
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+Track = Literal[
+    "Academics", "Research", "Internships", "Projects",
+    "Skills", "Leadership", "Network", "Impact"
+]
+
+Icon = Literal[
+    "GraduationCap", "FlaskConical", "Briefcase", "Code",
+    "BookOpen", "Users", "Target", "Trophy"
+]
+
+class Action(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    label: str
+
+class Milestone(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    title: str
+    track: Track
+    icon: Icon
+    why: str
+    mentorDid: str
+    menteeNow: str
+    deltaNote: str
+    etaWeeks: int = Field(ge=1, le=52)
+    impact: int = Field(ge=1, le=5)
+    effort: int = Field(ge=1, le=5)
+    actions: list[Action]
+    deps: list[str] | None = None
+
+    @field_validator("actions")
+    @classmethod
+    def _actions_len(cls, v: list[Action]):
+        if len(v) != 3:
+            raise ValueError("actions must contain exactly 3 items")
+        return v
+
+    @field_validator("icon")
+    @classmethod
+    def _icon_matches_track(cls, v: Icon, info):
+        mapping = {
+            "Academics": "GraduationCap",
+            "Research": "FlaskConical",
+            "Internships": "Briefcase",
+            "Projects": "Code",
+            "Skills": "BookOpen",
+            "Leadership": "Users",
+            "Network": "Target",
+            "Impact": "Trophy",
+        }
+        track = info.data.get("track")
+        if track and mapping.get(track) != v:
+            raise ValueError(f"icon must be '{mapping[track]}' for track '{track}'")
+        return v
+
+class GenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mentee_background: str = Field(..., min_length=10)
+    mentor_background: str = Field(..., min_length=10)
+    count: int = Field(8, ge=8, le=9)
+
+class GenerateResponse(BaseModel):
+    milestones: list[Milestone]
+
+    @model_validator(mode="after")
+    def _len_check(self):
+        ms = getattr(self, "milestones", [])
+        if not (8 <= len(ms) <= 9):
+            raise ValueError("milestones must contain 8 or 9 items")
+        return self
+    
+SYSTEM_INSTRUCTIONS = """
+You output ONLY strict JSON, no prose/markdown. Return a JSON ARRAY of 8 or 9
+milestone objects (use the requested count) that map a mentee->mentor roadmap.
+
+Each item MUST include exactly:
+id, title, track, icon, why, mentorDid, menteeNow, deltaNote,
+etaWeeks (1..52), impact (1..5), effort (1..5),
+actions (exactly 3 items: {id,label}), deps (optional array of ids).
+
+Valid tracks: "Academics","Research","Internships","Projects","Skills","Leadership","Network","Impact".
+icon MUST match track exactly:
+  Academics->GraduationCap
+  Research->FlaskConical
+  Internships->Briefcase
+  Projects->Code
+  Skills->BookOpen
+  Leadership->Users
+  Network->Target
+  Impact->Trophy
+
+Use ONLY details inferable from the provided backgrounds.
+ids must be kebab-case. Action labels are short, imperative.
+Return ONLY the JSON array (no wrapper keys, no commentary).
+"""
+
+def _user_prompt(mentee: str, mentor: str, count: int) -> str:
+    return f"""
+Mentee background:
+\"\"\"{mentee}\"\"\"
+
+Mentor background:
+\"\"\"{mentor}\"\"\"
+
+Produce exactly {count} milestone objects following the schema and rules. Return ONLY the JSON array.
+"""
+
+async def _call_openrouter(mentee_bg: str, mentor_bg: str, count: int) -> list[dict]:
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY not configured")
+
+    payload = {
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": SYSTEM_INSTRUCTIONS.strip()},
+            {"role": "user", "content": _user_prompt(mentee_bg, mentor_bg, count).strip()},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 2000,
+        # JSON mode hint (gracefully ignored if unsupported)
+        "response_format": {"type": "json_object"},
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "X-Title": "OwlConnect Roadmap Generator",
+    }
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        res = await client.post(OPENROUTER_URL, headers=headers, json=payload)
+        if res.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"OpenRouter error {res.status_code}: {res.text}")
+        data = res.json()
+
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except Exception:
+        raise HTTPException(status_code=502, detail="Malformed OpenRouter response")
+
+    # parse array (or extract first array if model wrapped)
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict) and "milestones" in parsed and isinstance(parsed["milestones"], list):
+            parsed = parsed["milestones"]
+        if not isinstance(parsed, list):
+            raise ValueError("Top-level JSON must be an array")
+        return parsed
+    except Exception:
+        import re
+        m = re.search(r"\[\s*{.*}\s*\]", content, re.DOTALL)
+        if not m:
+            raise HTTPException(status_code=502, detail="Failed to parse JSON array from model")
+        return json.loads(m.group(0))
+
+
+@app.post("/roadmap", response_model=GenerateResponse)
+async def generate_roadmap(req: GenerateRequest):
+    """
+    Generate 8–9 milestone JSON objects based ONLY on mentee/mentor backgrounds.
+    Returns an exact, validated array matching the SEED shape your UI expects.
+    """
+    raw = await _call_openrouter(req.mentee_background, req.mentor_background, req.count)
+
+    # Strict validation (forbid extra keys, enforce icon mapping, 3 actions, etc.)
+    try:
+        milestones = [Milestone(**item).model_dump() for item in raw]
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Validation failed: {e}")
+
+    # if len(milestones) != req.count:
+    #     raise HTTPException(status_code=422, detail=f"Expected {req.count} items, got {len(milestones)}")
+
+    return GenerateResponse(milestones=milestones)
