@@ -551,7 +551,7 @@ export default function OnboardingFlow() {
 
       {/* Main Content */}
       <main className="relative">
-        <BackgroundBeamsWithCollision className="absolute inset-0 pointer-events-none" />
+        {/* <BackgroundBeamsWithCollision className="absolute inset-0 pointer-events-none" /> */}
         <div className="relative z-10 max-w-3xl mx-auto p-4">
           <div className="h-[calc(100vh-120px)] flex items-center justify-center">
             <Card className="w-full max-w-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 border-neutral-200/50 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-neutral-300/50">

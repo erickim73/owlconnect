@@ -319,7 +319,7 @@ class MatchingSystem:
 
 
         print("\n\033[1m=== MULTIPLE SUCCESSFUL NEGOTIATIONS ===\033[0m")
-        print("Mentee is deciding between the following mentors:")
+        # print("Mentee is deciding between the following mentors:")
 
         mentor_options: List[Dict[str, Any]] = []
         for m_id, score, conversation in successful_mentors:
@@ -336,6 +336,8 @@ class MatchingSystem:
 
         mentee = self.mentees[mentee_id]
         ranked_choices = self._make_mentee_decision(mentee, mentor_options)
+        # print(mentor_options)
+        # print(ranked_choices)
         if ranked_choices:
             # ranked_choices: List[(mentor_id, score, rank)] with rank 1..3
             # Pick the top (rank==1) as the selected mentor for the match result:
@@ -364,38 +366,39 @@ class MatchingSystem:
             return [(m["id"], m["initial_compatibility"], 1)]
 
         prompt = """You are a Rice University student who has successfully negotiated with multiple mentors.
-    Choose the best three mentors by COMPATIBILITY ONLY (no scheduling talk). Be critical, compare strengths,
-    and output strict JSON:
+            Choose the best three mentors by FIRST IF THE PROFESSION MATCHES THE CAREER GOAL, and then MENTORSHIP CAPABILITY AND COMPATABILITY ONLY (no scheduling talk). Be critical, compare strengths,
+            and output strict JSON:
 
-    {
-    "ranking": [
-        {"mentor_id": "<id from input>", "rank": 1, "reason": "one sentence"},
-        {"mentor_id": "<id>", "rank": 2, "reason": "one sentence"},
-        {"mentor_id": "<id>", "rank": 3, "reason": "one sentence"}
-    ],
-    "summary": "one- or two-sentence overview"
-    }
+            {
+            "ranking": [
+                {"mentor_id": "<id from input>", "rank": 1, "reason": "one sentence"},
+                {"mentor_id": "<id>", "rank": 2, "reason": "one sentence"},
+                {"mentor_id": "<id>", "rank": 3, "reason": "one sentence"}
+            ],
+            "summary": "one- or two-sentence overview"
+            }
 
-    Rules:
-    - Rank 1 is the top choice, then 2, then 3.
-    - Only include IDs that were provided.
-    - If there are only two valid mentors, return only two; if one, return one.
-    - Do not include any extra fields or text outside the JSON.
-    """
+            Rules:
+            - Rank 1 is the top choice, then 2, then 3.
+            - Only include IDs that were provided.
+            - If there are only two valid mentors, return only two; if one, return one.
+            - Do not include any extra fields or text outside the JSON.
+            - Critically think if they have experience that will be helpful for your goals
+            """
 
         mentor_descriptions: List[str] = []
         for i, mentor in enumerate(mentor_options, 1):
             mentor_descriptions.append(
                 f"""
-    Mentor {i}: {mentor['name']}
-    - Skills: {', '.join(mentor['profile']['skills'])}
-    - Experience: {mentor['profile']['experience']} years
-    - Communication style: {mentor['profile']['communication_style']}
-    - Availability: {', '.join(mentor['profile']['availability'])}
-    - Initial compatibility: {mentor['initial_compatibility']:.1%}
-    - Conversation summary: {' '.join([msg['message'] for msg in mentor['conversation'][-4:] if msg['from'] != 'system'])}
-    """.strip()
-            )
+                Mentor {i}: {mentor['name']}
+                - Skills: {', '.join(mentor['profile']['skills'])}
+                - Experience: {mentor['profile']['experience']} years
+                - Communication style: {mentor['profile']['communication_style']}
+                - Availability: {', '.join(mentor['profile']['availability'])}
+                - Initial compatibility: {mentor['initial_compatibility']:.1%}
+                - Conversation summary: {' '.join([msg['message'] for msg in mentor['conversation'][-4:] if msg['from'] != 'system'])}
+                """.strip()
+                        )
 
         formatted_prompt = (
             f"{prompt}\n\n"
@@ -414,6 +417,10 @@ class MatchingSystem:
                 "Return valid JSON exactly as requested."
             ),
         )
+
+
+        thinking = json.loads(response)
+        print("Thought Process", thinking['summary'])
 
         # ---- Parse or fallback to compatibility sort ----
         try:
@@ -583,7 +590,7 @@ class MatchingSystem:
             current_sys = mentee_system if current is mentee else mentor_system
 
             import time
-            time.sleep(0)
+            time.sleep(1.5)
 
 # --- DRIVER ------------------------------------------------------------------
 
