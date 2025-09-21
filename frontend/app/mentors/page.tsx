@@ -20,7 +20,7 @@ import {
 import Navigation from "@/components/nav"
 import { getMatchedMentors } from "../agents/page"
 
-// ---------- Types that match your real mentor objects ----------
+// ---------- Types ----------
 type EducationItem = {
   institution?: string
   degree?: string
@@ -43,26 +43,19 @@ type ExperienceItem = {
 }
 
 type MentorDoc = {
-  // common ids / misc
   id?: string
   avatar?: string
-
-  // names/titles
   name?: string
   pronouns?: string
-  title?: string                 // e.g. "CAD Application Engineer"
-  current_role?: string          // e.g. "Engineering Solutions at Apple (CAD Application Engineer)"
+  title?: string
+  current_role?: string
   employer?: string
   location?: string
   major?: string
-
-  // academics & experience
   education?: EducationItem[]
   experience_history?: ExperienceItem[]
-  experience?: number | string   // sometimes number (years)
+  experience?: number | string
   experience_years?: number
-
-  // text & lists
   about?: string
   certifications?: string[]
   skills?: string[]
@@ -72,8 +65,6 @@ type MentorDoc = {
   availability?: string[]
   communication_style?: string
   goals?: string[]
-
-  // alt naming you had in earlier schema (keep for compatibility)
   profile?: {
     name?: string
     skills?: string[]
@@ -87,13 +78,13 @@ type MentorDoc = {
     interests?: string[]
     mbti?: string
   }
-
-  // other root fields you showed (kept optional)
   job_description?: string[]
   course_descriptions?: string[]
   career_interests?: string[]
   mbti?: string
 }
+
+type MatchedMentor = { id: string; score: number } // normalized 0..100
 
 const ICONS = [Briefcase, TrendingUp, Target] as const
 const GRADIENTS = [
@@ -107,57 +98,42 @@ function pick<T>(arr: readonly T[], i: number): T {
 }
 
 function firstNonEmpty(...vals: (string | undefined | null)[]): string | undefined {
-  for (const v of vals) {
-    if (v && v.trim().length > 0) return v
-  }
+  for (const v of vals) if (v && v.trim().length > 0) return v
   return undefined
 }
 
-// Build a nice one-liner for education from the first entry
 function formatEducation(edus?: EducationItem[]): string {
   if (!edus || edus.length === 0) return "—"
   const e = edus[0]
-  const parts = [
-    e.degree,
-    e.field ? `(${e.field})` : undefined,
-    e.institution ? `• ${e.institution}` : undefined,
-  ].filter(Boolean)
+  const parts = [e.degree, e.field ? `(${e.field})` : undefined, e.institution ? `• ${e.institution}` : undefined].filter(
+    Boolean,
+  )
   return parts.join(" ")
 }
 
-// Merge skills preference: explicit skills → frameworks/tools → mentorship topics → fallback
 function pullSkills(m: MentorDoc): string[] {
   const fromProfile = m.profile?.skills ?? []
   const fromRoot = m.skills ?? []
   const fromTools = m.frameworks_tools ?? []
   const fromTopics = m.mentorship_topics ?? []
-
   const merged = [...fromRoot, ...fromProfile, ...fromTools, ...fromTopics].filter(Boolean)
   if (merged.length) return Array.from(new Set(merged)).slice(0, 8)
   return ["Mentorship", "Career Planning", "Project Execution"]
 }
 
-// Convert a mentor document → the card shape your UI expects
-function toCareerPath(m: MentorDoc, index: number) {
+// Convert a mentor document → the card shape your UI expects, using real score
+function toCareerPath(m: MentorDoc, index: number, scorePct: number) {
   const Icon = pick(ICONS, index)
   const g = pick(GRADIENTS, index)
 
-  // Name
-  const name =
-    firstNonEmpty(m.profile?.name, m.name) ?? "Unknown Mentor"
+  const name = firstNonEmpty(m.profile?.name, m.name) ?? "Unknown Mentor"
 
-  // Job/title line
   const jobFromProfileList = Array.isArray(m.profile?.job_description) ? m.profile?.job_description[0] : undefined
   const job =
-    firstNonEmpty(
-      jobFromProfileList,
-      m.title,                       // e.g., "CAD Application Engineer"
-      m.current_role                 // e.g., "Engineering Solutions at Apple (CAD Application Engineer)"
-    ) ?? "Mentor"
+    firstNonEmpty(jobFromProfileList, m.title, m.current_role) ?? "Mentor"
 
   const companySuffix = m.employer ? ` at ${m.employer}` : ""
 
-  // Experience years
   const years =
     typeof m.profile?.experience === "number"
       ? `${m.profile?.experience} years`
@@ -169,27 +145,15 @@ function toCareerPath(m: MentorDoc, index: number) {
       ? m.experience
       : "—"
 
-  // Education text
-  const educationText =
-    firstNonEmpty(m.profile?.course_descriptions?.[0]) ?? formatEducation(m.education)
-
-  // Skills
+  const educationText = firstNonEmpty(m.profile?.course_descriptions?.[0]) ?? formatEducation(m.education)
   const skills = pullSkills(m)
-
-  // Location
   const locationText = firstNonEmpty(m.location) ?? "Remote / Flexible"
 
-  // Title/description on the colored card
-  const cardTitle =
-    firstNonEmpty(m.profile?.career_interests?.[0], m.career_interests?.[0]) ??
-    "Mentorship Track"
-
+  const cardTitle = firstNonEmpty(m.profile?.career_interests?.[0], m.career_interests?.[0]) ?? "Mentorship Track"
   const cardDesc =
-    firstNonEmpty(m.profile?.goals?.[0], m.goals?.[0], m.about) ??
-    "Personalized guidance based on your interests and goals"
+    firstNonEmpty(m.profile?.goals?.[0], m.goals?.[0], m.about) ?? "Personalized guidance based on your interests and goals"
 
-  // Silly but useful heuristic for a “match score”
-  const matchScore = `${Math.min(99, 70 + (skills.length * 3) % 25)}% compatibility`
+  const matchScore = `${Math.round(Math.min(100, Math.max(0, scorePct)))}% compatibility`
 
   return {
     id: m.id ?? index + 1,
@@ -200,12 +164,7 @@ function toCareerPath(m: MentorDoc, index: number) {
     location: locationText,
     experience: "—",
     skills,
-    nextSteps: [
-      "Book an intro chat",
-      "Share your current goals",
-      "Set a 30–60–90 plan together",
-      "Schedule a monthly check-in",
-    ],
+    nextSteps: ["Book an intro chat", "Share your current goals", "Set a 30–60–90 plan together", "Schedule a monthly check-in"],
     icon: Icon,
     gradient: g.chip,
     bgGradient: g.bg,
@@ -215,7 +174,7 @@ function toCareerPath(m: MentorDoc, index: number) {
       title: `${job}${companySuffix}`,
       avatar:
         m.avatar ||
-        "https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=256&auto=format&fit=facearea&facepad=2.5&h=256",
+        "https://i.pinimg.com/736x/9e/83/75/9e837528f01cf3f42119c5aeeed1b336.jpg",
       experience: years,
       education: educationText,
       match: matchScore,
@@ -225,41 +184,70 @@ function toCareerPath(m: MentorDoc, index: number) {
 
 const CareerExplorationPage = () => {
   const [mounted, setMounted] = useState(false)
-  const [mentors, setMentors] = useState<MentorDoc[]>([])
-  const [matchedMentors, setMatchedMentors] = useState<string[]>([])
+
+  // list from API: [(id, score), ...]
+  const [matchedMentors, setMatchedMentors] = useState<MatchedMentor[]>([])
+
+  // fetched mentor docs keyed by id
+  const [mentorsById, setMentorsById] = useState<Record<string, MentorDoc>>({})
 
   useEffect(() => setMounted(true), [])
 
-  // 1) Load IDs of matched mentors
+  // 1) Load matched mentors with scores
   useEffect(() => {
-    getMatchedMentors().then((ids) => {
-      setMatchedMentors(Array.from(new Set(ids || [])))
-    })
+    ;(async () => {
+      const raw = (await getMatchedMentors()) as Array<[string, number]> | undefined
+      if (!raw) return
+      // Normalize to 0..100 if needed (assume 0..1 -> *100; already-in-percent if >1)
+      const normalized: MatchedMentor[] = raw.map(([id, s]) => ({
+        id,
+        score: s > 1 ? s : s * 100,
+      }))
+      // Dedup by id, keep max score
+      const byId = new Map<string, number>()
+      for (const { id, score } of normalized) {
+        byId.set(id, Math.max(byId.get(id) ?? 0, score))
+      }
+      const unique = Array.from(byId, ([id, score]) => ({ id, score }))
+      // Sort desc by score
+      unique.sort((a, b) => b.score - a.score)
+      setMatchedMentors(unique)
+    })()
   }, [])
 
-  // 2) Fetch mentor docs in parallel
+  // 2) Fetch mentor docs (parallel, only missing ones)
   useEffect(() => {
-    async function fetchMentors() {
-      if (!matchedMentors.length) return
+    ;(async () => {
+      const missing = matchedMentors.map(m => m.id).filter(id => !mentorsById[id])
+      if (!missing.length) return
       const results = await Promise.allSettled(
-        matchedMentors.map(async (id) => {
-          // IMPORTANT: use ?id=... to match FastAPI signature: get_mentor(id: str)
+        missing.map(async (id) => {
           const res = await fetch(`http://localhost:8000/get-mentor?mentor_id=${encodeURIComponent(id)}`)
           if (!res.ok) throw new Error(`Failed to fetch mentor ${id}: ${res.status}`)
-          return (await res.json()) as MentorDoc
+          const doc = (await res.json()) as MentorDoc
+          // ensure the document has an id
+          return { id, doc: { ...doc, id: doc.id ?? id } }
         }),
       )
-      const ok = results
-        .filter((r): r is PromiseFulfilledResult<MentorDoc> => r.status === "fulfilled")
-        .map((r) => r.value)
-      setMentors(ok)
-      // console.debug(results.filter(r => r.status === "rejected"))
-    }
-    fetchMentors()
+      const next: Record<string, MentorDoc> = { ...mentorsById }
+      for (const r of results) {
+        if (r.status === "fulfilled") next[r.value.id] = r.value.doc
+      }
+      setMentorsById(next)
+    })()
   }, [matchedMentors])
 
-  // 3) Derive the cards from real mentor data; show first 3
-  const careerPaths = useMemo(() => mentors.slice(0, 3).map(toCareerPath), [mentors])
+  // 3) Build cards (top 3 by score, using real compatibility)
+  const careerPaths = useMemo(() => {
+    const top3 = matchedMentors.slice(0, 3)
+    return top3
+      .map((m, idx) => {
+        const doc = mentorsById[m.id]
+        if (!doc) return null
+        return toCareerPath(doc, idx, m.score)
+      })
+      .filter(Boolean) as ReturnType<typeof toCareerPath>[]
+  }, [matchedMentors, mentorsById])
 
   if (!mounted) return null
 
@@ -282,16 +270,12 @@ const CareerExplorationPage = () => {
             </p>
           </div>
 
-          {/* Career Path Cards */}
+          {/* Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {careerPaths.map((path, index) => {
               const IconComponent = path.icon
               return (
-                <div
-                  key={path.id}
-                  className="space-y-4 h-full flex flex-col"
-                  style={{ animationDelay: `${index * 200}ms` }}
-                >
+                <div key={String(path.id)} className="space-y-4 h-full flex flex-col" style={{ animationDelay: `${index * 200}ms` }}>
                   <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 h-52">
                     <CardContent className="p-4 py-3 h-full">
                       <div className="flex items-start space-x-4 h-full">
@@ -334,14 +318,10 @@ const CareerExplorationPage = () => {
                     </CardContent>
                   </Card>
 
-                  <Card
-                    className={`bg-gradient-to-br ${path.bgGradient} ${path.borderColor} border-2 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group cursor-pointer h-full flex flex-col flex-1`}
-                  >
+                  <Card className={`bg-gradient-to-br ${path.bgGradient} ${path.borderColor} border-2 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] group cursor-pointer h-full flex flex-col flex-1`}>
                     <CardHeader className="pb-6 flex-shrink-0">
                       <div className="flex items-start space-x-4">
-                        <div
-                          className={`w-14 h-14 bg-gradient-to-r ${path.gradient} rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 flex-shrink-0`}
-                        >
+                        <div className={`w-14 h-14 bg-gradient-to-r ${path.gradient} rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 flex-shrink-0`}>
                           <IconComponent className="w-7 h-7 text-white" />
                         </div>
                         <div className="flex-1">
@@ -360,9 +340,11 @@ const CareerExplorationPage = () => {
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Career Overview</h4>
 
                         <div className="grid grid-cols-1 gap-3">
+                          
+
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
-                              <MapPin className="w-4 h-4 text-purple-600" />
+                              <MapPin className="w-4 h-4" />
                               <span className="text-sm text-gray-600">Top Locations</span>
                             </div>
                             <span className="text-sm font-semibold text-gray-900 text-right">{path.location}</span>
@@ -385,7 +367,7 @@ const CareerExplorationPage = () => {
                         </div>
                       </div>
 
-                      <div className="flex-1">
+                      {/* <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Your Action Plan</h4>
                         <div className="space-y-3">
                           {path.nextSteps.map((step: string, stepIndex: number) => (
@@ -397,7 +379,7 @@ const CareerExplorationPage = () => {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </div> */}
 
                     </CardContent>
                   </Card>
@@ -406,11 +388,11 @@ const CareerExplorationPage = () => {
             })}
           </div>
 
-          {careerPaths.length === 0 && (
+          {/* {careerPaths.length === 0 && (
             <div className="text-center text-gray-600">
               No mentors yet. Make sure <code>/get-mentor?id=…</code> returns data and CORS is allowed from your Next.js origin.
             </div>
-          )}
+          )} */}
 
         </div>
       </main>

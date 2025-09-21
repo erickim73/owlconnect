@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +16,7 @@ from database.user_crud import OnboardingCRUD
 from database.mentors_crud import MentorsCRUD
 import certifi
 from fastapi import Body
+
 
 load_dotenv()
 
@@ -175,7 +176,7 @@ async def onboard_text(paragraph_text: str = Form(...)):
 @app.post("/add-matched-mentors")
 async def add_matched_mentors(
     doc_id: str = Body(...),
-    mentors: List[str] = Body(...)
+    mentors: List[Tuple] = Body(...)
 ):
     await user_crud.add_matched_mentors(doc_id, mentors)
     return {"id": doc_id, "matched_mentors": mentors}
