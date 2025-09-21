@@ -1,10 +1,12 @@
 "use client"
 
+import Image from "next/image"
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { GraduationCap, Users, ChevronRight, ChevronLeft, Sparkles, Clock, Upload, Loader2 } from "lucide-react"
+import { GraduationCap, Users, ChevronRight, ChevronLeft, Clock, Upload, Loader2 } from "lucide-react"
+import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision"
 
 interface OnboardingData {
   role: "mentee" | "mentor" | null
@@ -93,26 +95,26 @@ export default function OnboardingFlow() {
     if (currentStep < totalSteps - 1) {
       setIsTransitioning(true)
       setTimeout(() => {
-        setCurrentStep(prevStep => prevStep + 1)
+        setCurrentStep((prevStep) => prevStep + 1)
         setIsTransitioning(false)
       }, 200)
     }
-    
+
     // If we're on the file upload step and have files to upload, start upload in background
-    if (currentStep === 1 && data.role === 'mentee' && data.resume && data.transcript) {
+    if (currentStep === 1 && data.role === "mentee" && data.resume && data.transcript) {
       const uploadFiles = async () => {
         try {
           const formData = new FormData()
-          formData.append('resume_file', data.resume!)
-          formData.append('transcript_file', data.transcript!)
+          formData.append("resume_file", data.resume!)
+          formData.append("transcript_file", data.transcript!)
 
           // Add a timeout to the fetch request
           const controller = new AbortController()
           const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
           try {
-            const response = await fetch('http://localhost:8000/onboard-files', {
-              method: 'POST',
+            const response = await fetch("http://localhost:8000/onboard-files", {
+              method: "POST",
               body: formData,
               signal: controller.signal,
             })
@@ -120,24 +122,24 @@ export default function OnboardingFlow() {
 
             if (!response.ok) {
               const errorText = await response.text()
-              console.error('Background file upload failed:', errorText)
+              console.error("Background file upload failed:", errorText)
             }
           } catch (error) {
             clearTimeout(timeoutId)
-            if (error instanceof Error && error.name === 'AbortError') {
-              console.warn('File upload timed out. Continuing without upload.')
+            if (error instanceof Error && error.name === "AbortError") {
+              console.warn("File upload timed out. Continuing without upload.")
             } else {
-              console.error('Network error during file upload:', error)
+              console.error("Network error during file upload:", error)
             }
           }
         } catch (error) {
-          console.error('Error preparing file upload:', error)
+          console.error("Error preparing file upload:", error)
         }
       }
-      
+
       // Start the upload in the background without blocking the UI
-      uploadFiles().catch(error => {
-        console.error('Unexpected error in file upload:', error)
+      uploadFiles().catch((error) => {
+        console.error("Unexpected error in file upload:", error)
       })
     }
   }
@@ -172,23 +174,18 @@ export default function OnboardingFlow() {
     try {
       if (data.role === "mentee") {
         // Create paragraph text from all the profile data
-        const paragraphText = `
-          Hobbies and Interests: ${data.hobbies}
-          
-          Personality and MBTI: ${data.mbti}
-          
-          Career Goals and Aspirations: ${data.careerGoals}
-        `.trim()
+        const paragraphText =
+          `Hobbies and Interests: ${data.hobbies}\nPersonality and MBTI: ${data.mbti}\nCareer Goals and Aspirations: ${data.careerGoals}`.trim()
 
         // Send the text data to the backend
-        const response = await fetch('http://localhost:8000/onboard-text', {
-          method: 'POST',
+        const response = await fetch("http://localhost:8000/onboard-text", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            "Content-Type": "application/x-www-form-urlencoded",
           },
           body: new URLSearchParams({
-            paragraph_text: paragraphText
-          })
+            paragraph_text: paragraphText,
+          }),
         })
 
         if (!response.ok) {
@@ -199,7 +196,7 @@ export default function OnboardingFlow() {
           } catch {
             errorData = { detail: errorText || `HTTP ${response.status}` }
           }
-          throw new Error(errorData.detail || 'Text submission failed')
+          throw new Error(errorData.detail || "Text submission failed")
         }
 
         const result = await response.json()
@@ -208,10 +205,10 @@ export default function OnboardingFlow() {
         // Open WebSocket connection before redirecting
         // Generate a unique session ID for this user
         const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        
+
         // Store session ID in localStorage for the agents page to use
-        localStorage.setItem('negotiation_session_id', sessionId)
-        localStorage.setItem('should_auto_connect', 'true')
+        localStorage.setItem("negotiation_session_id", sessionId)
+        localStorage.setItem("should_auto_connect", "true")
 
         // Redirect to dashboard after successful submission
         window.location.href = "/agents"
@@ -258,21 +255,21 @@ export default function OnboardingFlow() {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-6 text-center animate-scale-in">
-            <div className="space-y-3">
-              <h2 className="text-3xl font-bold text-black mb-3">
+          <div className="space-y-4 text-center animate-scale-in">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-black mb-2">
                 Welcome to{" "}
                 <span className="bg-gradient-to-r from-black to-neutral-600 bg-clip-text text-transparent">
                   OwlConnect
                 </span>
               </h2>
-              <p className="text-neutral-600 text-base max-w-xl mx-auto">
-                AI agents will negotiate the perfect mentor matches for you. Let&apos;s get started by understanding your
-                role.
+              <p className="text-neutral-600 text-sm max-w-xl mx-auto">
+                AI agents will negotiate the perfect mentor matches for you. Let&apos;s get started by understanding
+                your role.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl mx-auto">
               <Card
                 className={`cursor-pointer transition-all duration-500 hover:scale-105 border-2 animate-slide-in-left ${
                   data.role === "mentee"
@@ -281,7 +278,7 @@ export default function OnboardingFlow() {
                 }`}
                 onClick={() => handleRoleSelection("mentee")}
               >
-                <CardContent className="p-7 text-center">
+                <CardContent className="p-5 text-center">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 transition-all duration-300 hover:scale-110">
                     <GraduationCap className="w-6 h-6 text-white" />
                   </div>
@@ -300,7 +297,7 @@ export default function OnboardingFlow() {
                 }`}
                 onClick={() => handleRoleSelection("mentor")}
               >
-                <CardContent className="p-7 text-center">
+                <CardContent className="p-5 text-center">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-3 transition-all duration-300 hover:scale-110">
                     <Users className="w-6 h-6 text-white" />
                   </div>
@@ -514,14 +511,20 @@ export default function OnboardingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-white text-black overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-neutral-200/50">
         <div className="max-w-3xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center group">
               <div className="w-8 h-8 bg-gradient-to-br from-black to-neutral-700 rounded-full flex items-center justify-center mr-3 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-                <GraduationCap className="w-4 h-4 text-white" />
+                <Image
+                    src="/logo.svg"
+                    alt="OwlConnect Logo"
+                    width={30}
+                    height={30}
+                    className="w-10 h-10"
+                />
               </div>
               <span className="text-lg font-bold bg-gradient-to-r from-black to-neutral-600 bg-clip-text text-transparent">
                 OwlConnect
@@ -547,58 +550,59 @@ export default function OnboardingFlow() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-3xl mx-auto p-4">
-        <div className="h-[calc(100vh-100px)] flex items-center justify-center">
-          <Card className="w-full max-w-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 border-neutral-200/50 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-neutral-300/50">
-            <CardContent className="px-8 py-3 md:px-12 md:py-4 max-h-[calc(100vh-200px)] overflow-hidden">
-              <div className={`transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}>
-                {renderStep()}
-              </div>
-
-              {/* Navigation */}
-              {currentStep > 0 && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="ghost"
-                    onClick={handleBack}
-                    disabled={currentStep === 0 || isSubmitting}
-                    className="text-neutral-600 hover:text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
-                  </Button>
-
-                  {currentStep === totalSteps - 1 ? (
-                    <Button
-                      onClick={handleComplete}
-                      disabled={!isStepComplete() || isSubmitting}
-                      className="bg-black text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          Complete Setup
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleNext}
-                      disabled={!isStepComplete()}
-                      className="bg-black text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                    >
-                      Continue
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  )}
+      <main className="relative">
+        <BackgroundBeamsWithCollision className="absolute inset-0 pointer-events-none" />
+        <div className="relative z-10 max-w-3xl mx-auto p-4">
+          <div className="h-[calc(100vh-120px)] flex items-center justify-center">
+            <Card className="w-full max-w-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 border-neutral-200/50 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-neutral-300/50">
+              <CardContent className="px-6 py-4 md:px-8 md:py-6">
+                <div className={`transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}>
+                  {renderStep()}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                {/* Navigation */}
+                {currentStep > 0 && (
+                  <div className="flex items-center justify-between mt-6">
+                    <Button
+                      variant="ghost"
+                      onClick={handleBack}
+                      disabled={currentStep === 0 || isSubmitting}
+                      className="text-neutral-600 hover:text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Back
+                    </Button>
+
+                    {currentStep === totalSteps - 1 ? (
+                      <Button
+                        onClick={handleComplete}
+                        disabled={!isStepComplete() || isSubmitting}
+                        className="bg-black text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>Complete Setup</>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleNext}
+                        disabled={!isStepComplete()}
+                        className="bg-black text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-full px-6 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
+                      >
+                        Continue
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
