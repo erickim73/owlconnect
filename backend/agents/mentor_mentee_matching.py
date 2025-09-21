@@ -17,11 +17,10 @@ import dotenv
 dotenv.load_dotenv()
 
 api_key = os.getenv("OPENROUTER_API_KEY")
-base_url = os.getenv("OPENROUTER_MODEL")
 
 kimi_client = ChatOpenAI(
     model="openai/gpt-4o-mini",
-    base_url=base_url,
+    base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
     temperature=0,
 )
