@@ -723,11 +723,17 @@ def init_MAN():
    
     
     # --- get top-k mentors for THIS mentee ---
-    top_k_mentors = sorted(
+
+
+    top_k_mentors = [
+    (mid, mobj, mobj.compatibility_scores.get(mentee_obj.agent_id, 0.0))
+    for mid, mobj in sorted(
         matching_system.mentors.items(),
         key=lambda item: item[1].compatibility_scores.get(mentee_obj.agent_id, 0.0),
         reverse=True
     )[:3]
+    ]
+
 
 # track lowest scoring alternative (exclude matched_mentor)
     lowest_mentor = None
@@ -746,7 +752,7 @@ def init_MAN():
     # print(top_k_mentors, mentee_obj.agent_id)
     requests.post(
         "http://localhost:8000/add-matched-mentors",
-        json={"doc_id": mentee_obj.agent_id, "mentors": [mid for mid, _ in top_k_mentors]},
+        json={"doc_id": mentee_obj.agent_id, "mentors": [(mid, score) for mid, mobj, score in top_k_mentors]},
         timeout=3
     )
 

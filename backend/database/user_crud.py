@@ -1,6 +1,6 @@
 # user_crud.py
 from __future__ import annotations
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Tuple
 from datetime import datetime
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection
@@ -60,13 +60,13 @@ class OnboardingCRUD:
         return _to_str_id(updated)
 
     
-    async def add_matched_mentors(self, doc_id: str, mentors: List[str]) -> None:
+    async def add_matched_mentors(self, doc_id: str, mentors: List[Tuple]) -> None:
         await self.collection.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {"matched_mentors": mentors}}
         )
 
-    async def get_matched_mentors(self, doc_id: str) -> Optional[List[str]]:
+    async def get_matched_mentors(self, doc_id: str) -> Optional[List[Tuple]]:
         doc = await self.collection.find_one({"_id": ObjectId(doc_id)})
         if doc and "matched_mentors" in doc:
             return doc["matched_mentors"]
