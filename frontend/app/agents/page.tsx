@@ -36,7 +36,7 @@ export default function AgentsPage() {
         if (hasFinished && !isStreaming && messages.length > 0) {
             const timer = setTimeout(() => {
                 router.push('/mentors')
-            }, 2000)
+            }, 10000)
 
             return () => clearTimeout(timer)
         }
