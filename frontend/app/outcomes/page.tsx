@@ -322,16 +322,6 @@ export default function MentorRoadmap() {
   return (
     <div className="min-h-[100vh] w-full bg-gradient-to-b from-gray-50 to-white">
       <Navigation />
-      {/* Top Nav */}
-      <div className="mx-auto max-w-6xl px-4 pt-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xl font-semibold">
-            <Map className="h-5 w-5 text-violet-600" />
-            OwlConnect · Outcomes
-          </div>
-          <div className="text-sm text-gray-500">Career Path Comparison</div>
-        </div>
-      </div>
 
       {/* Header */}
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -356,24 +346,6 @@ export default function MentorRoadmap() {
             </div>
 
             <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="h-1 w-full rounded-full bg-gradient-to-r from-sky-200 via-violet-200 to-fuchsia-200" />
-              </div>
-              <div className="relative flex items-center justify-between">
-                <StopDot active />
-                <ChevronRight className="h-5 w-5 text-gray-400" />
-                <StopDot />
-                <ChevronRight className="h-5 w-5 text-gray-400" />
-                <StopDot />
-                <ChevronRight className="h-5 w-5 text-gray-400" />
-                <StopDot />
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                <span>Mentee</span>
-                <span className="text-gray-400">Milestones</span>
-                <span className="text-gray-400">Skills</span>
-                <span>Mentor</span>
-              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3">
@@ -386,11 +358,6 @@ export default function MentorRoadmap() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ProgressPill label="Overall Parity Progress" value={completion} />
-            <ProgressPill label="Leverage (Impact − Effort)" value={Math.min(100, Math.max(0, (score(active.impact, active.effort) + 5) * 10))} />
-            <div className="flex items-center gap-3 text-sm text-gray-600"><Clock className="h-4 w-4" /> ETA for current stop: <strong className="ml-1">{active.etaWeeks} weeks</strong></div>
-          </div>
         </SectionCard>
       </div>
 
@@ -417,8 +384,8 @@ export default function MentorRoadmap() {
                       <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center shadow-sm transition-all ${activeId === m.id ? "border-fuchsia-500 bg-white scale-105" : "border-white/60 bg-white/90"}`}>
                         <m.icon className={`h-5 w-5 ${activeId === m.id ? "text-fuchsia-600" : "text-gray-500"}`} />
                       </div>
-                      <div className="mt-2 text-xs font-medium text-gray-700 group-hover:text-gray-900 text-center w-28 truncate">{m.title}</div>
-                      <div className={`mt-1 text-[10px] px-2 py-0.5 rounded-full ring-1 ${chipColor(m.track)} whitespace-nowrap`}>{m.track}</div>
+                      <div className="mt-4 text-xs font-medium text-gray-700 group-hover:text-gray-900 text-center w-28 truncate">{m.title}</div>
+                      <div className={`mb-1 mt-1 text-[10px] px-2 py-0.5 rounded-full ring-1 ${chipColor(m.track)} whitespace-nowrap`}>{m.track}</div>
                     </button>
                   ))}
                 </div>
@@ -508,16 +475,7 @@ export default function MentorRoadmap() {
         </div>
       </div>
 
-      {/* Footer CTA */}
-      <div className="mx-auto max-w-6xl px-4 my-10">
-        <div className="rounded-2xl border border-gray-200 bg-gradient-to-r from-sky-50 via-violet-50 to-fuchsia-50 p-6 text-center">
-          <div className="text-lg font-semibold text-gray-800">Ship momentum every week.</div>
-          <div className="text-sm text-gray-600 mt-1">Check off 2–3 actions/week and you’ll converge with {MENTOR.name.split(" ")[0]} in ~{Math.ceil((SEED.reduce((a,b)=>a+b.etaWeeks,0))/8)} months.</div>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 text-white px-4 py-2 shadow hover:shadow-md cursor-default">
-            <Sparkles className="h-4 w-4"/> Auto-planning hooks available — wire to your data store
-          </div>
-        </div>
-      </div>
+     <br />
     </div>
   );
 }
