@@ -118,12 +118,12 @@ export default function AgentsPage() {
   }, [messages.length])
 
   // Redirect after stream fully done
-//   useEffect(() => {
-//     if (hasFinished && !isStreaming && messages.length > 0) {
-//       const timer = setTimeout(() => router.push("/mentors"), 10000)
-//       return () => clearTimeout(timer)
-//     }
-//   }, [hasFinished, isStreaming, messages.length, router])
+  useEffect(() => {
+    if (hasFinished && !isStreaming && messages.length > 0) {
+      const timer = setTimeout(() => router.push("/mentors"), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [hasFinished, isStreaming, messages.length, router])
 
 useEffect(() => {
   getMatchedMentors().then(mentors => {
