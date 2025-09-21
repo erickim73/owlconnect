@@ -12,13 +12,10 @@ from parsers.transcript_parser import parse_major_and_courses, _extract_course_p
 from agents.mentor_mentee_matching import init_MAN
 from agents.ws_streamer import router as ws_router
 from mcp_servers.course_mcp import rice_lookup_courses
-import uuid
-import re
-import PyPDF2
-import io
 from database.user_crud import OnboardingCRUD
 from database.mentors_crud import MentorsCRUD
 import certifi
+from fastapi import Body
 
 load_dotenv()
 
@@ -173,3 +170,23 @@ async def onboard_text(paragraph_text: str = Form(...)):
         raise
     except Exception as e:
         raise HTTPException(400, detail=f"Update failed: {e}")
+
+
+@app.post("/add-matched-mentors")
+async def add_matched_mentors(
+    doc_id: str = Body(...),
+    mentors: List[str] = Body(...)
+):
+    await user_crud.add_matched_mentors(doc_id, mentors)
+    return {"id": doc_id, "matched_mentors": mentors}
+
+@app.get("/get-matched-mentors")
+async def get_matched_mentors():
+    user = await user_crud.get_most_recent()
+    return await user_crud.get_matched_mentors(user.get("id", ""))
+
+@app.get("/get-mentor")
+async def get_mentor(mentor_id: str):
+    return await mentors.get(mentor_id)
+
+

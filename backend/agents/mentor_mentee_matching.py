@@ -549,7 +549,7 @@ Mentor {i}: {mentor['name']}
             current_sys = mentee_system if current is mentee else mentor_system
 
             import time
-            time.sleep(1.5)
+            time.sleep(0)
 
 # --- DRIVER ------------------------------------------------------------------
 
@@ -641,7 +641,9 @@ def init_MAN():
 
     mentee = requests.get('http://localhost:8000/users/newest', timeout=3).json()
 
-    matching_system.add_mentee(Mentee(agent_id="mentee", name=mentee.get("resume_data", "").get("contact", "").get("name", ""), profile=json_to_profile(mentee)))
+    mentee_obj = Mentee(agent_id=mentee.get("id", "mentee"), name=mentee.get("resume_data", "").get("contact", "").get("name", ""), profile=json_to_profile(mentee))
+
+    matching_system.add_mentee(mentee_obj)
 
     # --- Add agents to the system (this was missing) ---
     mentors = requests.get("http://localhost:8000/mentors", timeout=3).json()
@@ -704,6 +706,8 @@ def init_MAN():
     matched_mentor = None
     lowest_mentor_score = float("inf")
     lowest_mentor = None
+
+   
     for mentee_id, mentee in matching_system.mentees.items():
         if mentee.matched_with:
             mentor = matching_system.mentors[mentee.matched_with]
@@ -711,43 +715,59 @@ def init_MAN():
             print(f"  ✓ {mentee.name} → {mentor.name}")
             matched_mentor = mentor
         
-    for mentor in matching_system.mentors.values():
-        if mentor.agent_id != matched_mentor.agent_id:
-            score = mentor.compatibility_scores.get(mentee_id, 0)
-            if score < lowest_mentor_score:
-                lowest_mentor_score = score
-                lowest_mentor = mentor
+    # get top k mentors
+    
+    # for mentor in top_k_mentors:
+    #     print(f"  ✓ {mentee.name} → {mentor.name}")
 
-    unmatched = [m for m in matching_system.mentees.values() if not m.matched_with]
-    if unmatched:
-        print("\n\033[91mUNMATCHED MENTEES:\033[0m")
-        for m in unmatched:
-            print(f"  ✗ {m.name} (No suitable match found)")
+   
+    
+    # --- get top-k mentors for THIS mentee ---
+    top_k_mentors = sorted(
+        matching_system.mentors.items(),
+        key=lambda item: item[1].compatibility_scores.get(mentee_obj.agent_id, 0.0),
+        reverse=True
+    )[:3]
 
-    # print("\n\033[1mMENTOR CAPACITY:\033[0m")
-    # for mentor in matching_system.mentors.values():
-    #     max_mentees = mentor.max_mentees
-    #     current_mentees = len(mentor.current_mentees)
-    #     status = "\033[92m" if current_mentees > 0 else "\033[93m"
-    #     mentee_names = ", ".join(
-    #         [m.name for m in matching_system.mentees.values() if m.matched_with == mentor.agent_id]
-    #     ) or "None"
-    #     print(f"  {mentor.name}: {current_mentees}/{max_mentees} mentees {status}({mentee_names})\033[0m")
+# track lowest scoring alternative (exclude matched_mentor)
+    lowest_mentor = None
+    lowest_mentor_score = float("inf")
 
+    if matched_mentor is not None:  # only if you actually matched
+        for m in matching_system.mentors.values():
+            if m.agent_id == matched_mentor.agent_id:
+                continue
+            s = m.compatibility_scores.get(mentee_obj.agent_id, 0.0)
+            if s < lowest_mentor_score:
+                lowest_mentor_score = s
+                lowest_mentor = m
 
-    score_a = matched_mentor.rate_compatibility(mentee, embedding_model)
-    inter_a  = matched_mentor.component_scores.get("interpersonal_score", 0.0)
-    prof_a   = matched_mentor.component_scores.get("professional_score", 0.0)
+# save top-k back to your API WITHOUT clobbering the mentee object
+    # print(top_k_mentors, mentee_obj.agent_id)
+    requests.post(
+        "http://localhost:8000/add-matched-mentors",
+        json={"doc_id": mentee_obj.agent_id, "mentors": [mid for mid, _ in top_k_mentors]},
+        timeout=3
+    )
 
-    # Compute B once
-    score_b = lowest_mentor.rate_compatibility(mentee, embedding_model)
-    inter_b  = lowest_mentor.component_scores.get("interpersonal_score", 0.0)
-    prof_b   = lowest_mentor.component_scores.get("professional_score", 0.0)
+# --- Benchmarks: use the real Mentee object, not the POST dict ---
+    if matched_mentor is not None and lowest_mentor is not None:
+        mentee_for_eval = matching_system.mentees[mentee_obj.agent_id]  # or just mentee_obj
 
-    print("\n=== BENCHMARK RESULTS ===")
-    print_test_case_block("Test Case A • Excellent Match", inter_a, prof_a, score_a)
-    print("\n")
-    print_test_case_block("Test Case B • Mismatched",      inter_b, prof_b, score_b)
+        score_a = matched_mentor.rate_compatibility(mentee_for_eval, embedding_model)
+        inter_a = matched_mentor.component_scores.get("interpersonal_score", 0.0)
+        prof_a  = matched_mentor.component_scores.get("professional_score", 0.0)
+
+        score_b = lowest_mentor.rate_compatibility(mentee_for_eval, embedding_model)
+        inter_b = lowest_mentor.component_scores.get("interpersonal_score", 0.0)
+        prof_b  = lowest_mentor.component_scores.get("professional_score", 0.0)
+
+        print("\n=== BENCHMARK RESULTS ===")
+        print_test_case_block("Test Case A • Excellent Match", inter_a, prof_a, score_a)
+        print()
+        print_test_case_block("Test Case B • Mismatched",      inter_b, prof_b, score_b)
+    else:
+        print("\n[Benchmark skipped: matched_mentor or lowest_mentor not available]")
 
 
 # ── Pretty printing helpers ───────────────────────────────────────────────────

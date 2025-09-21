@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Iterable
 from motor.motor_asyncio import AsyncIOMotorCollection
+from bson import ObjectId
 
 def _to_str_id_one(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if not doc:
@@ -24,3 +25,7 @@ class MentorsCRUD:
         cursor = self.collection.find({})  # add filters here if needed
         docs = await cursor.to_list(length=None)
         return _to_str_id_many(docs)
+
+    async def get(self, id: str) -> Optional[Dict[str, Any]]:
+        doc = await self.collection.find_one({"_id": ObjectId(id)})
+        return _to_str_id_one(doc)

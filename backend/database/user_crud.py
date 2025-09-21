@@ -1,6 +1,6 @@
-# onboarding_crud.py
+# user_crud.py
 from __future__ import annotations
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from datetime import datetime
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection
@@ -58,3 +58,16 @@ class OnboardingCRUD:
         # 3) fetch updated doc
         updated = await self.collection.find_one({"_id": _id})
         return _to_str_id(updated)
+
+    
+    async def add_matched_mentors(self, doc_id: str, mentors: List[str]) -> None:
+        await self.collection.update_one(
+            {"_id": ObjectId(doc_id)},
+            {"$set": {"matched_mentors": mentors}}
+        )
+
+    async def get_matched_mentors(self, doc_id: str) -> Optional[List[str]]:
+        doc = await self.collection.find_one({"_id": ObjectId(doc_id)})
+        if doc and "matched_mentors" in doc:
+            return doc["matched_mentors"]
+        return []

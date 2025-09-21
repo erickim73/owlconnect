@@ -56,10 +56,19 @@ function useStreamQueue<T>(opts?: {
   const resume = () => { pausedRef.current = false; scheduleNext() }
   const setSpeedMs = (ms: number | null) => { speedMsRef.current = ms }
 
+  
+
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
   return { visible, enqueue, clear, pause, resume, setSpeedMs }
 }
+
+export async function getMatchedMentors() {
+  return fetch(`http://localhost:8000/get-matched-mentors`)
+    .then(response => response.json())
+}
+
+
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -94,6 +103,8 @@ export default function AgentsPage() {
   const benchmarkAccumulatorRef = useRef("")
   const isBenchmarkModeRef = useRef(false)
 
+  const [alreadyHasMentors, setAlreadyHasMentors] = useState(false)
+
   // smart autoscroll (only if user is at bottom)
   const handleScroll = () => {
     const el = scrollBoxRef.current
@@ -114,11 +125,20 @@ export default function AgentsPage() {
 //     }
 //   }, [hasFinished, isStreaming, messages.length, router])
 
-  useEffect(() => {
-    setIsMounted(true)
-    const sessionId = localStorage.getItem("negotiation_session_id")
-    if (sessionId) setTimeout(() => { connectWebSocket() }, 100)
-  }, [])
+useEffect(() => {
+  getMatchedMentors().then(mentors => {
+    if (mentors.length > 0) {
+      setAlreadyHasMentors(true);
+    } else {
+      setIsMounted(true);
+      const sessionId = localStorage.getItem("negotiation_session_id");
+      if (sessionId) setTimeout(() => { connectWebSocket() }, 100);
+    }
+  });
+}, []);
+
+
+  
 
   // WebSocket refs
   const wsRef = useRef<WebSocket | null>(null)
@@ -310,6 +330,7 @@ export default function AgentsPage() {
     return () => { wsRef.current?.close() }
   }, [])
 
+    
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -388,8 +409,8 @@ export default function AgentsPage() {
             {messages.length === 0 && !isStreaming && !hasFinished && (
               <div className="text-center py-16">
                 <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <div className="text-muted-foreground text-lg mb-2">No negotiations yet</div>
-                <div className="text-muted-foreground text-sm">Click Start to begin the AI matching process</div>
+                <div className="text-muted-foreground text-lg mb-2">Already Matched!</div>
+                <div className="text-muted-foreground text-sm">Go to Mentors to see matches</div>
               </div>
             )}
 
