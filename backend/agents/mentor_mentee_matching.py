@@ -548,6 +548,9 @@ Mentor {i}: {mentor['name']}
             current, other = other, current
             current_sys = mentee_system if current is mentee else mentor_system
 
+            import time
+            time.sleep(1.5)
+
 # --- DRIVER ------------------------------------------------------------------
 
 
