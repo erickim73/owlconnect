@@ -710,6 +710,10 @@ def init_MAN():
             score = mentor.compatibility_scores.get(mentee_id, 0)
             print(f"  ✓ {mentee.name} → {mentor.name}")
             matched_mentor = mentor
+        
+    for mentor in matching_system.mentors.values():
+        if mentor.agent_id != matched_mentor.agent_id:
+            score = mentor.compatibility_scores.get(mentee_id, 0)
             if score < lowest_mentor_score:
                 lowest_mentor_score = score
                 lowest_mentor = mentor
