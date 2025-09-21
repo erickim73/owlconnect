@@ -223,8 +223,8 @@ export default function CareerPathsPage() {
               </span>
             </h1>
             <p className="text-gray-600 text-xl max-w-3xl mx-auto text-pretty leading-relaxed">
-              See exactly how your academic path, research interests, and internship goals align with mentors who&apos;ve
-              achieved success in your target field.
+              See exactly how your academic path, research interests, and internship goals align with mentors
+              who&apos;ve achieved success in your target field.
             </p>
           </div>
         </div>
@@ -284,19 +284,19 @@ export default function CareerPathsPage() {
                   key: "academics",
                   label: "Academic Journey",
                   icon: GraduationCap,
-                  gradient: "from-blue-500 to-blue-600",
+                  gradient: "from-blue-300 to-blue-400", 
                 },
                 {
                   key: "research",
                   label: "Research Experience",
                   icon: FlaskConical,
-                  gradient: "from-purple-500 to-purple-600",
+                  gradient: "from-purple-300 to-purple-400", 
                 },
                 {
                   key: "internships",
                   label: "Internships",
                   icon: Briefcase,
-                  gradient: "from-green-500 to-green-600",
+                  gradient: "from-green-300 to-green-400", 
                 },
               ].map(({ key, label, icon: Icon, gradient }) => (
                 <button
