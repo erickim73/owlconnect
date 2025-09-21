@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Bot, Users, GraduationCap } from "lucide-react"
+import { Bot, Users } from "lucide-react"
 
 export default function Navigation() {
     const pathname = usePathname()
@@ -30,9 +31,13 @@ export default function Navigation() {
                     {/* Left section - fixed width */}
                     <div className="flex items-center w-48">
                         <Link href="/dashboard" className="flex items-center group">
-                            <div className="w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-full flex items-center justify-center mr-3 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-                                <GraduationCap className="w-5 h-5 text-white" />
-                            </div>
+                            <Image
+                                src="/logo.svg"
+                                alt="OwlConnect Logo"
+                                width={30}
+                                height={30}
+                                className="w-10 h-10"
+                            />
                             <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                                 OwlConnect
                             </span>
@@ -63,7 +68,7 @@ export default function Navigation() {
                     {/* Right section - fixed width, same as left */}
                     <div className="flex items-center justify-end w-48">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-sm font-medium transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-gray-500/20 cursor-pointer text-white">
-                            U
+                            EK
                         </div>
                     </div>
                 </div>
