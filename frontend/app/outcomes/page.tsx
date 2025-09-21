@@ -210,8 +210,8 @@ export default function CareerPathsPage() {
       <Navigation />
 
       <div className="border-b border-blue-200/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center space-y-5">
             <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-4">
               <Sparkles className="w-4 h-4 mr-2" />
               Career Path Comparison
@@ -230,7 +230,7 @@ export default function CareerPathsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-12">
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select a Mentor to Compare</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -674,13 +674,7 @@ export default function CareerPathsPage() {
                 >
                   Connect with {selectedMentor.name}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-2 border-gray-300 text-gray-700 hover:bg-gray-900 hover:text-white bg-white rounded-2xl px-8 py-4 transition-all duration-300 hover:scale-105"
-                >
-                  Explore All Mentors
-                </Button>
+                
               </div>
             </CardContent>
           </Card>
